@@ -1,0 +1,13 @@
+{
+  "camera_name": "ZWO ASI183MM Pro",
+  "pixel_size_microns": 2.4,
+  "sensor_dimensions": {
+    "width_pixels": 5496,
+    "height_pixels": 3672,
+    "width_mm": 0.0,
+    "height_mm": 0.0
+  },
+  "rotation_degrees": 0.0,
+  "saturation_limit": 65504,
+  "notes": ""
+}

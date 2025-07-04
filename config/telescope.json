@@ -1,0 +1,12 @@
+{
+  "telescope_name": "William Optics RedCat71",
+  "aperture_mm": 71.0,
+  "focal_length_mm": 349.8,
+  "focal_ratio": 4.9,
+  "seeing": {
+    "theoretical_arcsec": 0.0,
+    "atmospheric_arcsec": 1.5,
+    "combined_fwhm_arcsec": 0.0
+  },
+  "notes": ""
+}
