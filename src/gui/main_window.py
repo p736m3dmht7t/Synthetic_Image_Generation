@@ -192,30 +192,46 @@ class MainWindow:
         # Telescope specs
         ttk.Label(frame, text="Aperture (mm):").grid(row=1, column=0, sticky="w", padx=5, pady=5)
         self.telescope_aperture = tk.DoubleVar()
-        ttk.Entry(frame, textvariable=self.telescope_aperture, width=15).grid(row=1, column=1, sticky="w", padx=5, pady=5)
+        aperture_entry = ttk.Entry(frame, textvariable=self.telescope_aperture, width=15)
+        aperture_entry.grid(row=1, column=1, sticky="w", padx=5, pady=5)
+        aperture_entry.bind('<KeyRelease>', self.on_telescope_param_change)
+        aperture_entry.bind('<FocusOut>', self.on_telescope_param_change)
         
         ttk.Label(frame, text="Focal Length (mm):").grid(row=2, column=0, sticky="w", padx=5, pady=5)
         self.telescope_focal_length = tk.DoubleVar()
-        ttk.Entry(frame, textvariable=self.telescope_focal_length, width=15).grid(row=2, column=1, sticky="w", padx=5, pady=5)
+        focal_length_entry = ttk.Entry(frame, textvariable=self.telescope_focal_length, width=15)
+        focal_length_entry.grid(row=2, column=1, sticky="w", padx=5, pady=5)
+        focal_length_entry.bind('<KeyRelease>', self.on_telescope_param_change)
+        focal_length_entry.bind('<FocusOut>', self.on_telescope_param_change)
         
         ttk.Label(frame, text="Focal Ratio:").grid(row=3, column=0, sticky="w", padx=5, pady=5)
         self.telescope_focal_ratio = tk.DoubleVar()
-        ttk.Entry(frame, textvariable=self.telescope_focal_ratio, width=15).grid(row=3, column=1, sticky="w", padx=5, pady=5)
+        focal_ratio_entry = ttk.Entry(frame, textvariable=self.telescope_focal_ratio, width=15)
+        focal_ratio_entry.grid(row=3, column=1, sticky="w", padx=5, pady=5)
+        focal_ratio_entry.bind('<KeyRelease>', self.on_telescope_param_change)
+        focal_ratio_entry.bind('<FocusOut>', self.on_telescope_param_change)
         
         # Seeing section
         ttk.Label(frame, text="Seeing", font=("Arial", 10, "bold")).grid(row=4, column=0, columnspan=2, sticky="w", padx=5, pady=(15,5))
         
         ttk.Label(frame, text="Theoretical (arcsec):").grid(row=5, column=0, sticky="w", padx=5, pady=5)
         self.telescope_theoretical_seeing = tk.DoubleVar()
-        ttk.Entry(frame, textvariable=self.telescope_theoretical_seeing, width=15).grid(row=5, column=1, sticky="w", padx=5, pady=5)
+        theoretical_entry = ttk.Entry(frame, textvariable=self.telescope_theoretical_seeing, width=15)
+        theoretical_entry.grid(row=5, column=1, sticky="w", padx=5, pady=5)
+        theoretical_entry.bind('<KeyRelease>', self.on_seeing_change)
+        theoretical_entry.bind('<FocusOut>', self.on_seeing_change)
         
         ttk.Label(frame, text="Atmospheric (arcsec):").grid(row=6, column=0, sticky="w", padx=5, pady=5)
         self.telescope_atmospheric_seeing = tk.DoubleVar()
-        ttk.Entry(frame, textvariable=self.telescope_atmospheric_seeing, width=15).grid(row=6, column=1, sticky="w", padx=5, pady=5)
+        atmospheric_entry = ttk.Entry(frame, textvariable=self.telescope_atmospheric_seeing, width=15)
+        atmospheric_entry.grid(row=6, column=1, sticky="w", padx=5, pady=5)
+        atmospheric_entry.bind('<KeyRelease>', self.on_seeing_change)
+        atmospheric_entry.bind('<FocusOut>', self.on_seeing_change)
         
         ttk.Label(frame, text="Combined FWHM (arcsec):").grid(row=7, column=0, sticky="w", padx=5, pady=5)
         self.telescope_combined_fwhm = tk.DoubleVar()
-        ttk.Entry(frame, textvariable=self.telescope_combined_fwhm, width=15).grid(row=7, column=1, sticky="w", padx=5, pady=5)
+        combined_entry = ttk.Entry(frame, textvariable=self.telescope_combined_fwhm, width=15)
+        combined_entry.grid(row=7, column=1, sticky="w", padx=5, pady=5)
         
         # Notes
         ttk.Label(frame, text="Notes:").grid(row=8, column=0, sticky="nw", padx=5, pady=5)
@@ -709,6 +725,65 @@ class MainWindow:
             # Stop progress indicator
             self.progress.stop()
             self.progress.config(mode='determinate')
+    
+    def on_telescope_param_change(self, event=None):
+        """Handle changes to telescope parameters and perform automatic calculations."""
+        try:
+            aperture = self.telescope_aperture.get()
+            focal_length = self.telescope_focal_length.get()
+            focal_ratio = self.telescope_focal_ratio.get()
+            
+            # Only calculate if values are non-zero and valid
+            if aperture > 0 and focal_length > 0 and focal_ratio == 0:
+                # Calculate focal ratio: f/# = focal_length / aperture
+                calculated_ratio = focal_length / aperture
+                # Format to 1 significant figure
+                formatted_ratio = float(f"{calculated_ratio:.1g}")
+                self.telescope_focal_ratio.set(formatted_ratio)
+            elif aperture > 0 and focal_ratio > 0 and focal_length == 0:
+                # Calculate focal length: focal_length = aperture * f/#
+                calculated_focal_length = aperture * focal_ratio
+                # Format to 1 significant figure
+                formatted_fl = float(f"{calculated_focal_length:.1g}")
+                self.telescope_focal_length.set(formatted_fl)
+            elif focal_length > 0 and focal_ratio > 0 and aperture == 0:
+                # Calculate aperture: aperture = focal_length / f/#
+                calculated_aperture = focal_length / focal_ratio
+                # Format to 1 significant figure
+                formatted_aperture = float(f"{calculated_aperture:.1g}")
+                self.telescope_aperture.set(formatted_aperture)
+            
+            # Calculate theoretical seeing if aperture is available
+            if aperture > 0:
+                # Dawes limit: resolution = 116 / aperture_mm arcsec
+                theoretical_seeing = 116.0 / aperture
+                self.telescope_theoretical_seeing.set(round(theoretical_seeing, 2))
+                
+                # Trigger combined FWHM calculation
+                self.calculate_combined_fwhm()
+                
+        except (tk.TclError, ValueError, ZeroDivisionError):
+            # Ignore invalid values during typing
+            pass
+    
+    def on_seeing_change(self, event=None):
+        """Handle changes to seeing parameters and calculate combined FWHM."""
+        self.calculate_combined_fwhm()
+    
+    def calculate_combined_fwhm(self):
+        """Calculate combined FWHM from theoretical and atmospheric seeing."""
+        try:
+            theoretical = self.telescope_theoretical_seeing.get()
+            atmospheric = self.telescope_atmospheric_seeing.get()
+            
+            if theoretical > 0 and atmospheric > 0:
+                # Combined FWHM: sqrt(theoretical^2 + atmospheric^2)
+                combined = (theoretical**2 + atmospheric**2)**0.5
+                self.telescope_combined_fwhm.set(round(combined, 2))
+                
+        except (tk.TclError, ValueError):
+            # Ignore invalid values during typing
+            pass
     
     def run(self):
         """Run the main application loop."""
