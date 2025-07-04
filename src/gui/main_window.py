@@ -1011,29 +1011,41 @@ class MainWindow:
     def on_telescope_param_change(self, event=None):
         """Handle changes to telescope parameters and perform automatic calculations."""
         try:
-            aperture = self.telescope_aperture.get()
-            focal_length = self.telescope_focal_length.get()
-            focal_ratio = self.telescope_focal_ratio.get()
+            # Get values, handling empty fields
+            def get_field_value(var):
+                try:
+                    value = var.get()
+                    return value if value > 0 else 0
+                except (tk.TclError, ValueError):
+                    return 0
             
-            # Only calculate if values are non-zero and valid
-            if aperture > 0 and focal_length > 0 and focal_ratio == 0:
-                # Calculate focal ratio: f/# = focal_length / aperture
-                calculated_ratio = focal_length / aperture
-                # Format to 1 significant figure
-                formatted_ratio = float(f"{calculated_ratio:.1g}")
-                self.telescope_focal_ratio.set(formatted_ratio)
-            elif aperture > 0 and focal_ratio > 0 and focal_length == 0:
-                # Calculate focal length: focal_length = aperture * f/#
-                calculated_focal_length = aperture * focal_ratio
-                # Format to 1 significant figure
-                formatted_fl = float(f"{calculated_focal_length:.1g}")
-                self.telescope_focal_length.set(formatted_fl)
-            elif focal_length > 0 and focal_ratio > 0 and aperture == 0:
-                # Calculate aperture: aperture = focal_length / f/#
-                calculated_aperture = focal_length / focal_ratio
-                # Format to 1 significant figure
-                formatted_aperture = float(f"{calculated_aperture:.1g}")
-                self.telescope_aperture.set(formatted_aperture)
+            aperture = get_field_value(self.telescope_aperture)
+            focal_length = get_field_value(self.telescope_focal_length)
+            focal_ratio = get_field_value(self.telescope_focal_ratio)
+            
+            # Count how many fields have valid values
+            valid_fields = sum([aperture > 0, focal_length > 0, focal_ratio > 0])
+            
+            # Only calculate if exactly 2 fields have values and 1 is empty/zero
+            if valid_fields == 2:
+                if aperture > 0 and focal_length > 0 and focal_ratio == 0:
+                    # Calculate focal ratio: f/# = focal_length / aperture
+                    calculated_ratio = focal_length / aperture
+                    # Format to 1 decimal place
+                    formatted_ratio = round(calculated_ratio, 1)
+                    self.telescope_focal_ratio.set(formatted_ratio)
+                elif aperture > 0 and focal_ratio > 0 and focal_length == 0:
+                    # Calculate focal length: focal_length = aperture * f/#
+                    calculated_focal_length = aperture * focal_ratio
+                    # Format to 1 decimal place
+                    formatted_fl = round(calculated_focal_length, 1)
+                    self.telescope_focal_length.set(formatted_fl)
+                elif focal_length > 0 and focal_ratio > 0 and aperture == 0:
+                    # Calculate aperture: aperture = focal_length / f/#
+                    calculated_aperture = focal_length / focal_ratio
+                    # Format to 1 decimal place
+                    formatted_aperture = round(calculated_aperture, 1)
+                    self.telescope_aperture.set(formatted_aperture)
             
             # Calculate theoretical seeing if aperture is available
             if aperture > 0:
