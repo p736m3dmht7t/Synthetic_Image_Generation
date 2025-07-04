@@ -115,11 +115,11 @@ class MainWindow:
         dec_entry.grid(row=3, column=1, sticky="w", padx=5, pady=5)
         dec_entry.bind('<Return>', self.on_coordinates_enter)
         
-        ttk.Label(frame, text="RA (string):").grid(row=4, column=0, sticky="w", padx=5, pady=5)
+        ttk.Label(frame, text="RA (HH:MM:SS):").grid(row=4, column=0, sticky="w", padx=5, pady=5)
         self.target_ra_str = tk.StringVar()
         ttk.Entry(frame, textvariable=self.target_ra_str, width=15).grid(row=4, column=1, sticky="w", padx=5, pady=5)
         
-        ttk.Label(frame, text="Dec (string):").grid(row=5, column=0, sticky="w", padx=5, pady=5)
+        ttk.Label(frame, text="Dec (+DD:MM:SS):").grid(row=5, column=0, sticky="w", padx=5, pady=5)
         self.target_dec_str = tk.StringVar()
         ttk.Entry(frame, textvariable=self.target_dec_str, width=15).grid(row=5, column=1, sticky="w", padx=5, pady=5)
         
@@ -221,7 +221,7 @@ class MainWindow:
         self.search_by_coordinates()
     
     def search_by_coordinates(self):
-        """Search for target by RA/Dec coordinates (placeholder for future implementation)."""
+        """Search for target by RA/Dec coordinates in Simbad database."""
         try:
             ra_str = self.target_ra.get().strip()
             dec_str = self.target_dec.get().strip()
@@ -242,16 +242,60 @@ class MainWindow:
                 messagebox.showerror("Error", "Dec must be between -90 and +90 degrees.")
                 return
             
-            # Provide visual feedback only (no popup)
-            self.set_button_success(self.search_coord_btn)
+            # Import and create catalog query instance
+            from catalog_query import CatalogQuery
+            catalog_query = CatalogQuery()
             
-            # Coordinates are valid - visual feedback shows success
-            # Future implementation could search star catalogs by coordinates
+            # Show progress
+            self.root.config(cursor="wait")
+            self.root.update()
+            
+            # Lookup target by coordinates
+            target_info = catalog_query.lookup_target_by_coordinates(ra_val, dec_val)
+            
+            if target_info:
+                # Update all fields with Simbad data
+                self.target_name.set(target_info['name'])
+                
+                # Update coordinate fields with Simbad precision
+                ra_str = f"{target_info['ra_deg']:.6f}"
+                dec_str = f"{target_info['dec_deg']:+.6f}"  # Always show sign for Dec
+                self.target_ra.set(ra_str)
+                self.target_dec.set(dec_str)
+                self.target_ra_str.set(target_info['ra_str'])
+                self.target_dec_str.set(target_info['dec_str'])
+                
+                # Update magnitude fields with proper formatting
+                if target_info['magnitudes']['B'] is not None:
+                    self.target_mag_b.set(f"{target_info['magnitudes']['B']:.3f}")
+                else:
+                    self.target_mag_b.set("")
+                if target_info['magnitudes']['V'] is not None:
+                    self.target_mag_v.set(f"{target_info['magnitudes']['V']:.3f}")
+                else:
+                    self.target_mag_v.set("")
+                if target_info['magnitudes']['R'] is not None:
+                    self.target_mag_r.set(f"{target_info['magnitudes']['R']:.3f}")
+                else:
+                    self.target_mag_r.set("")
+                if target_info['magnitudes']['I'] is not None:
+                    self.target_mag_i.set(f"{target_info['magnitudes']['I']:.3f}")
+                else:
+                    self.target_mag_i.set("")
+                
+                # Provide visual feedback for success
+                self.set_button_success(self.search_coord_btn)
+            else:
+                messagebox.showinfo("No Results", f"No objects found at coordinates:\nRA: {ra_val:.6f}°\nDec: {dec_val:+.6f}°")
             
         except ValueError:
             messagebox.showerror("Error", "Invalid coordinate format. Please enter numeric values.")
         except Exception as e:
-            messagebox.showerror("Error", f"Error validating coordinates: {str(e)}")
+            messagebox.showerror("Error", f"Error searching coordinates: {str(e)}")
+        
+        finally:
+            # Reset cursor
+            self.root.config(cursor="")
     
     def set_button_success(self, button):
         """Set button to green for success feedback."""

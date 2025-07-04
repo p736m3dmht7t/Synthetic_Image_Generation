@@ -428,3 +428,91 @@ class CatalogQuery:
         except Exception as e:
             print(f"Error looking up target {target_name}: {str(e)}")
             return None
+    
+    def lookup_target_by_coordinates(self, ra_deg, dec_deg, search_radius_arcsec=30.0):
+        """
+        Lookup target information from Simbad database by coordinates.
+        
+        Args:
+            ra_deg (float): Right ascension in degrees
+            dec_deg (float): Declination in degrees
+            search_radius_arcsec (float): Search radius in arcseconds
+        
+        Returns:
+            dict: Target information including coordinates and magnitudes, or None if not found
+        """
+        try:
+            # Configure Simbad to return the data we need
+            Simbad.add_votable_fields('B', 'V', 'R', 'I')
+            
+            # Create coordinate object
+            coord = SkyCoord(ra=ra_deg*u.deg, dec=dec_deg*u.deg, frame='icrs')
+            
+            print(f"Looking up target at coordinates: RA={ra_deg:.6f}°, Dec={dec_deg:.6f}°")
+            print(f"Search radius: {search_radius_arcsec:.1f} arcsec")
+            
+            # Query Simbad around the coordinates
+            result_table = Simbad.query_region(coord, radius=search_radius_arcsec*u.arcsec)
+            
+            if result_table is None or len(result_table) == 0:
+                print(f"No objects found at coordinates RA={ra_deg:.6f}°, Dec={dec_deg:.6f}°")
+                return None
+            
+            # Take the closest result (first in the table)
+            target_data = result_table[0]
+            
+            # Get coordinates from Simbad result (handle direct degree format)
+            simbad_ra_deg = float(target_data['ra'])
+            simbad_dec_deg = float(target_data['dec'])
+            simbad_coord = SkyCoord(ra=simbad_ra_deg*u.deg, dec=simbad_dec_deg*u.deg)
+            
+            # Extract magnitudes (handle missing values)
+            def get_magnitude(flux_field):
+                try:
+                    value = target_data[flux_field]
+                    if value is None or np.ma.is_masked(value):
+                        return None
+                    return float(value)
+                except:
+                    return None
+            
+            # Format RA string with 2 decimal places for seconds
+            ra_str_formatted = simbad_coord.ra.to_string(unit=u.hourangle, sep=':', precision=2)
+            
+            # Format Dec string with 1 decimal place for seconds and always show sign
+            dec_str_formatted = simbad_coord.dec.to_string(unit=u.deg, sep=':', precision=1, alwayssign=True)
+            
+            # Format magnitudes to 3 decimal places
+            def format_magnitude(mag):
+                if mag is None:
+                    return None
+                return round(float(mag), 3)
+            
+            target_info = {
+                'name': target_data['main_id'].decode('utf-8') if isinstance(target_data['main_id'], bytes) else str(target_data['main_id']),
+                'ra_deg': simbad_ra_deg,
+                'dec_deg': simbad_dec_deg,
+                'ra_str': ra_str_formatted,
+                'dec_str': dec_str_formatted,
+                'magnitudes': {
+                    'B': format_magnitude(get_magnitude('B')),
+                    'V': format_magnitude(get_magnitude('V')),
+                    'R': format_magnitude(get_magnitude('R')),
+                    'I': format_magnitude(get_magnitude('I'))
+                }
+            }
+            
+            # Calculate separation from search coordinates
+            search_coord = SkyCoord(ra=ra_deg*u.deg, dec=dec_deg*u.deg)
+            separation = search_coord.separation(simbad_coord).arcsec
+            
+            print(f"Target found: {target_info['name']}")
+            print(f"Simbad coordinates: RA={target_info['ra_deg']:.6f}°, Dec={target_info['dec_deg']:.6f}°")
+            print(f"Separation from search: {separation:.2f} arcsec")
+            print(f"Magnitudes: B={target_info['magnitudes']['B']}, V={target_info['magnitudes']['V']}, R={target_info['magnitudes']['R']}, I={target_info['magnitudes']['I']}")
+            
+            return target_info
+            
+        except Exception as e:
+            print(f"Error looking up coordinates RA={ra_deg:.6f}°, Dec={dec_deg:.6f}°: {str(e)}")
+            return None
