@@ -29,12 +29,21 @@ class MainWindow:
         # Initialize configuration manager
         self.config_manager = ConfigManager()
         
+        # Configure TTK styles for button feedback
+        self.setup_button_styles()
+        
         # Create main interface
         self.create_menu()
         self.create_main_interface()
         
         # Load initial configurations
         self.load_all_configs()
+    
+    def setup_button_styles(self):
+        """Set up TTK styles for visual feedback."""
+        style = ttk.Style()
+        # Configure success button style (green)
+        style.configure("Success.TButton", background="lightgreen")
     
     def create_menu(self):
         """Create the main menu bar."""
@@ -77,21 +86,32 @@ class MainWindow:
         # Target name
         ttk.Label(frame, text="Target Name:").grid(row=0, column=0, sticky="w", padx=5, pady=5)
         self.target_name = tk.StringVar()
-        ttk.Entry(frame, textvariable=self.target_name, width=30).grid(row=0, column=1, padx=5, pady=5)
+        target_entry = ttk.Entry(frame, textvariable=self.target_name, width=30)
+        target_entry.grid(row=0, column=1, padx=5, pady=5)
+        target_entry.bind('<Return>', self.on_target_name_enter)
         
-        # Lookup button
-        ttk.Button(frame, text="Lookup", command=self.lookup_target).grid(row=0, column=2, padx=5, pady=5)
+        # Search button for target name
+        self.search_target_btn = ttk.Button(frame, text="Search", command=self.lookup_target)
+        self.search_target_btn.grid(row=0, column=2, padx=5, pady=5)
         
         # Coordinates section
         ttk.Label(frame, text="Coordinates", font=("Arial", 10, "bold")).grid(row=1, column=0, columnspan=2, sticky="w", padx=5, pady=(15,5))
         
         ttk.Label(frame, text="RA (degrees):").grid(row=2, column=0, sticky="w", padx=5, pady=5)
         self.target_ra = tk.StringVar()
-        ttk.Entry(frame, textvariable=self.target_ra, width=15).grid(row=2, column=1, sticky="w", padx=5, pady=5)
+        ra_entry = ttk.Entry(frame, textvariable=self.target_ra, width=15)
+        ra_entry.grid(row=2, column=1, sticky="w", padx=5, pady=5)
+        ra_entry.bind('<Return>', self.on_coordinates_enter)
+        
+        # Search button for coordinates
+        self.search_coord_btn = ttk.Button(frame, text="Search", command=self.search_by_coordinates)
+        self.search_coord_btn.grid(row=2, column=2, padx=5, pady=5)
         
         ttk.Label(frame, text="Dec (degrees):").grid(row=3, column=0, sticky="w", padx=5, pady=5)
         self.target_dec = tk.StringVar()
-        ttk.Entry(frame, textvariable=self.target_dec, width=15).grid(row=3, column=1, sticky="w", padx=5, pady=5)
+        dec_entry = ttk.Entry(frame, textvariable=self.target_dec, width=15)
+        dec_entry.grid(row=3, column=1, sticky="w", padx=5, pady=5)
+        dec_entry.bind('<Return>', self.on_coordinates_enter)
         
         ttk.Label(frame, text="RA (string):").grid(row=4, column=0, sticky="w", padx=5, pady=5)
         self.target_ra_str = tk.StringVar()
@@ -178,7 +198,8 @@ class MainWindow:
                 # Update target name to canonical form
                 self.target_name.set(target_info['name'])
                 
-                messagebox.showinfo("Success", f"Target information loaded for {target_info['name']}")
+                # Provide visual feedback instead of popup
+                self.set_button_success(self.search_target_btn)
             else:
                 messagebox.showerror("Error", f"Target '{target_name}' not found in Simbad database.")
                 
@@ -188,6 +209,67 @@ class MainWindow:
         finally:
             # Reset cursor
             self.root.config(cursor="")
+    
+    def on_target_name_enter(self, event=None):
+        """Handle Enter key press in target name field."""
+        self.lookup_target()
+    
+    def on_coordinates_enter(self, event=None):
+        """Handle Enter key press in coordinate fields."""
+        self.search_by_coordinates()
+    
+    def search_by_coordinates(self):
+        """Search for target by RA/Dec coordinates (placeholder for future implementation)."""
+        try:
+            ra_str = self.target_ra.get().strip()
+            dec_str = self.target_dec.get().strip()
+            
+            if not ra_str or not dec_str:
+                messagebox.showwarning("Warning", "Please enter both RA and Dec coordinates.")
+                return
+            
+            # Validate coordinates
+            ra_val = float(ra_str)
+            dec_val = float(dec_str)
+            
+            # Basic validation ranges
+            if not (0 <= ra_val <= 360):
+                messagebox.showerror("Error", "RA must be between 0 and 360 degrees.")
+                return
+            if not (-90 <= dec_val <= 90):
+                messagebox.showerror("Error", "Dec must be between -90 and +90 degrees.")
+                return
+            
+            # Provide visual feedback
+            self.set_button_success(self.search_coord_btn)
+            
+            # For now, just show coordinates are valid
+            # Future implementation could search star catalogs by coordinates
+            messagebox.showinfo("Coordinates Valid", 
+                              f"Coordinates validated:\nRA: {ra_val:.6f}°\nDec: {dec_val:+.6f}°\n\n"
+                              f"Note: Coordinate-based target lookup not yet implemented.")
+            
+        except ValueError:
+            messagebox.showerror("Error", "Invalid coordinate format. Please enter numeric values.")
+        except Exception as e:
+            messagebox.showerror("Error", f"Error validating coordinates: {str(e)}")
+    
+    def set_button_success(self, button):
+        """Set button to green for success feedback."""
+        # Reset all search buttons to default
+        self.reset_button_colors()
+        # Set the successful button to green (using ttk style)
+        button.configure(style="Success.TButton")
+        # Schedule reset after 2 seconds
+        self.root.after(2000, self.reset_button_colors)
+    
+    def reset_button_colors(self):
+        """Reset all search buttons to default color."""
+        try:
+            self.search_target_btn.configure(style="TButton")
+            self.search_coord_btn.configure(style="TButton")
+        except:
+            pass  # Ignore if buttons don't exist yet
     
     def create_telescope_tab(self):
         """Create the telescope configuration tab."""
