@@ -254,26 +254,41 @@ class MainWindow:
         # Camera specs
         ttk.Label(frame, text="Pixel Size (microns):").grid(row=1, column=0, sticky="w", padx=5, pady=5)
         self.camera_pixel_size = tk.DoubleVar()
-        ttk.Entry(frame, textvariable=self.camera_pixel_size, width=15).grid(row=1, column=1, sticky="w", padx=5, pady=5)
+        pixel_size_entry = ttk.Entry(frame, textvariable=self.camera_pixel_size, width=15)
+        pixel_size_entry.grid(row=1, column=1, sticky="w", padx=5, pady=5)
+        pixel_size_entry.bind('<KeyRelease>', self.on_camera_param_change)
+        pixel_size_entry.bind('<FocusOut>', self.on_camera_param_change)
         
         # Sensor dimensions
         ttk.Label(frame, text="Sensor Dimensions", font=("Arial", 10, "bold")).grid(row=2, column=0, columnspan=2, sticky="w", padx=5, pady=(15,5))
         
         ttk.Label(frame, text="Width (pixels):").grid(row=3, column=0, sticky="w", padx=5, pady=5)
         self.camera_width_pixels = tk.IntVar()
-        ttk.Entry(frame, textvariable=self.camera_width_pixels, width=15).grid(row=3, column=1, sticky="w", padx=5, pady=5)
+        width_pixels_entry = ttk.Entry(frame, textvariable=self.camera_width_pixels, width=15)
+        width_pixels_entry.grid(row=3, column=1, sticky="w", padx=5, pady=5)
+        width_pixels_entry.bind('<KeyRelease>', self.on_camera_param_change)
+        width_pixels_entry.bind('<FocusOut>', self.on_camera_param_change)
         
         ttk.Label(frame, text="Height (pixels):").grid(row=4, column=0, sticky="w", padx=5, pady=5)
         self.camera_height_pixels = tk.IntVar()
-        ttk.Entry(frame, textvariable=self.camera_height_pixels, width=15).grid(row=4, column=1, sticky="w", padx=5, pady=5)
+        height_pixels_entry = ttk.Entry(frame, textvariable=self.camera_height_pixels, width=15)
+        height_pixels_entry.grid(row=4, column=1, sticky="w", padx=5, pady=5)
+        height_pixels_entry.bind('<KeyRelease>', self.on_camera_param_change)
+        height_pixels_entry.bind('<FocusOut>', self.on_camera_param_change)
         
         ttk.Label(frame, text="Width (mm):").grid(row=5, column=0, sticky="w", padx=5, pady=5)
         self.camera_width_mm = tk.DoubleVar()
-        ttk.Entry(frame, textvariable=self.camera_width_mm, width=15).grid(row=5, column=1, sticky="w", padx=5, pady=5)
+        width_mm_entry = ttk.Entry(frame, textvariable=self.camera_width_mm, width=15)
+        width_mm_entry.grid(row=5, column=1, sticky="w", padx=5, pady=5)
+        width_mm_entry.bind('<KeyRelease>', self.on_camera_param_change)
+        width_mm_entry.bind('<FocusOut>', self.on_camera_param_change)
         
         ttk.Label(frame, text="Height (mm):").grid(row=6, column=0, sticky="w", padx=5, pady=5)
         self.camera_height_mm = tk.DoubleVar()
-        ttk.Entry(frame, textvariable=self.camera_height_mm, width=15).grid(row=6, column=1, sticky="w", padx=5, pady=5)
+        height_mm_entry = ttk.Entry(frame, textvariable=self.camera_height_mm, width=15)
+        height_mm_entry.grid(row=6, column=1, sticky="w", padx=5, pady=5)
+        height_mm_entry.bind('<KeyRelease>', self.on_camera_param_change)
+        height_mm_entry.bind('<FocusOut>', self.on_camera_param_change)
         
         # Other settings
         ttk.Label(frame, text="Rotation (degrees):").grid(row=7, column=0, sticky="w", padx=5, pady=5)
@@ -782,6 +797,54 @@ class MainWindow:
                 self.telescope_combined_fwhm.set(round(combined, 2))
                 
         except (tk.TclError, ValueError):
+            # Ignore invalid values during typing
+            pass
+    
+    def on_camera_param_change(self, event=None):
+        """Handle changes to camera parameters and perform automatic calculations."""
+        try:
+            pixel_size_microns = self.camera_pixel_size.get()
+            width_pixels = self.camera_width_pixels.get()
+            height_pixels = self.camera_height_pixels.get()
+            width_mm = self.camera_width_mm.get()
+            height_mm = self.camera_height_mm.get()
+            
+            # Convert pixel size to mm for calculations
+            pixel_size_mm = pixel_size_microns / 1000.0 if pixel_size_microns > 0 else 0
+            
+            # Calculate mm dimensions if pixel size and pixel dimensions are known
+            if pixel_size_microns > 0 and width_pixels > 0 and width_mm == 0:
+                calculated_width_mm = width_pixels * pixel_size_mm
+                formatted_width_mm = round(calculated_width_mm, 3)
+                self.camera_width_mm.set(formatted_width_mm)
+                
+            if pixel_size_microns > 0 and height_pixels > 0 and height_mm == 0:
+                calculated_height_mm = height_pixels * pixel_size_mm
+                formatted_height_mm = round(calculated_height_mm, 3)
+                self.camera_height_mm.set(formatted_height_mm)
+            
+            # Calculate pixel dimensions if pixel size and mm dimensions are known
+            if pixel_size_microns > 0 and width_mm > 0 and width_pixels == 0:
+                calculated_width_pixels = int(round(width_mm / pixel_size_mm))
+                self.camera_width_pixels.set(calculated_width_pixels)
+                
+            if pixel_size_microns > 0 and height_mm > 0 and height_pixels == 0:
+                calculated_height_pixels = int(round(height_mm / pixel_size_mm))
+                self.camera_height_pixels.set(calculated_height_pixels)
+            
+            # Calculate pixel size if pixel and mm dimensions are known
+            if width_pixels > 0 and width_mm > 0 and pixel_size_microns == 0:
+                calculated_pixel_size_mm = width_mm / width_pixels
+                calculated_pixel_size_microns = calculated_pixel_size_mm * 1000.0
+                formatted_pixel_size = round(calculated_pixel_size_microns, 2)
+                self.camera_pixel_size.set(formatted_pixel_size)
+            elif height_pixels > 0 and height_mm > 0 and pixel_size_microns == 0:
+                calculated_pixel_size_mm = height_mm / height_pixels
+                calculated_pixel_size_microns = calculated_pixel_size_mm * 1000.0
+                formatted_pixel_size = round(calculated_pixel_size_microns, 2)
+                self.camera_pixel_size.set(formatted_pixel_size)
+                
+        except (tk.TclError, ValueError, ZeroDivisionError):
             # Ignore invalid values during typing
             pass
     
