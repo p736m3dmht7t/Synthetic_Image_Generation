@@ -72,8 +72,8 @@ class ImageGenerator:
             if target_ra == 0 and target_dec == 0:
                 issues.append("Target coordinates are required")
             
-            target_v_mag = self.target_config.get('magnitudes', {}).get('V', 0)
-            if target_v_mag == 0:
+            target_v_mag = self.target_config.get('magnitudes', {}).get('V')
+            if target_v_mag is None or target_v_mag == 0:
                 issues.append("Target V magnitude is required")
             
             # Check telescope configuration
@@ -227,10 +227,13 @@ class ImageGenerator:
             image_shape = (height_pixels, width_pixels)
             
             # Get target magnitude for this band
-            target_magnitude = self.target_config.get('magnitudes', {}).get(band, 0)
-            if target_magnitude == 0:
-                print(f"Warning: No target magnitude specified for {band} band")
+            target_magnitude = self.target_config.get('magnitudes', {}).get(band)
+            if target_magnitude is None or target_magnitude == 0:
+                print(f"Warning: No target magnitude specified for {band} band, using V magnitude")
                 target_magnitude = self.target_config.get('magnitudes', {}).get('V', 0)
+                if target_magnitude is None or target_magnitude == 0:
+                    print(f"Error: No V magnitude available for fallback")
+                    return None
             
             # Get saturation limit
             saturation_limit = self.camera_config.get('saturation_limit', 65535)
