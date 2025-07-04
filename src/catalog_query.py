@@ -389,17 +389,33 @@ class CatalogQuery:
                 except:
                     return None
             
+            # Format coordinates with proper precision
+            ra_deg_formatted = float(f"{coord.ra.deg:.6g}")  # 6 significant digits
+            dec_deg_formatted = float(f"{coord.dec.deg:+.6g}")  # 6 significant digits with sign
+            
+            # Format RA string with 2 decimal places for seconds
+            ra_str_formatted = coord.ra.to_string(unit=u.hourangle, sep=':', precision=2)
+            
+            # Format Dec string with 1 decimal place for seconds and always show sign
+            dec_str_formatted = coord.dec.to_string(unit=u.deg, sep=':', precision=1, alwayssign=True)
+            
+            # Format magnitudes to 3 significant figures
+            def format_magnitude(mag):
+                if mag is None:
+                    return None
+                return float(f"{mag:.3g}")
+            
             target_info = {
                 'name': target_data['main_id'].decode('utf-8') if isinstance(target_data['main_id'], bytes) else str(target_data['main_id']),
-                'ra_deg': coord.ra.deg,
-                'dec_deg': coord.dec.deg,
-                'ra_str': coord.ra.to_string(unit=u.hourangle, sep=':'),
-                'dec_str': coord.dec.to_string(unit=u.deg, sep=':'),
+                'ra_deg': ra_deg_formatted,
+                'dec_deg': dec_deg_formatted,
+                'ra_str': ra_str_formatted,
+                'dec_str': dec_str_formatted,
                 'magnitudes': {
-                    'B': get_magnitude('B'),
-                    'V': get_magnitude('V'),
-                    'R': get_magnitude('R'),
-                    'I': get_magnitude('I')
+                    'B': format_magnitude(get_magnitude('B')),
+                    'V': format_magnitude(get_magnitude('V')),
+                    'R': format_magnitude(get_magnitude('R')),
+                    'I': format_magnitude(get_magnitude('I'))
                 }
             }
             
