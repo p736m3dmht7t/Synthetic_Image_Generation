@@ -389,9 +389,9 @@ class CatalogQuery:
                 except:
                     return None
             
-            # Format coordinates with proper precision
-            ra_deg_formatted = float(f"{coord.ra.deg:.6g}")  # 6 significant digits
-            dec_deg_formatted = float(f"{coord.dec.deg:+.6g}")  # 6 significant digits with sign
+            # Preserve full coordinate precision (no rounding)
+            ra_deg_formatted = coord.ra.deg  # Full precision
+            dec_deg_formatted = coord.dec.deg  # Full precision
             
             # Format RA string with 2 decimal places for seconds
             ra_str_formatted = coord.ra.to_string(unit=u.hourangle, sep=':', precision=2)

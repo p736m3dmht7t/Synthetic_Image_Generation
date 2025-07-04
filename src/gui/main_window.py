@@ -149,9 +149,15 @@ class MainWindow:
             target_info = catalog_query.lookup_target(target_name)
             
             if target_info:
-                # Populate coordinate fields with proper formatting
-                self.target_ra.set(f"{target_info['ra_deg']:.6f}")
-                self.target_dec.set(f"{target_info['dec_deg']:.6f}")
+                # Populate coordinate fields preserving full precision but displaying minimum 6 decimals
+                ra_str = f"{target_info['ra_deg']:.10f}".rstrip('0').rstrip('.')
+                if '.' not in ra_str or len(ra_str.split('.')[1]) < 6:
+                    ra_str = f"{target_info['ra_deg']:.6f}"
+                dec_str = f"{target_info['dec_deg']:.10f}".rstrip('0').rstrip('.')
+                if '.' not in dec_str or len(dec_str.split('.')[1]) < 6:
+                    dec_str = f"{target_info['dec_deg']:.6f}"
+                self.target_ra.set(ra_str)
+                self.target_dec.set(dec_str)
                 self.target_ra_str.set(target_info['ra_str'])
                 self.target_dec_str.set(target_info['dec_str'])
                 
@@ -483,11 +489,17 @@ class MainWindow:
             target_config = self.config_manager.load_target_config()
             self.target_name.set(target_config.get("target_name", ""))
             coords = target_config.get("coordinates", {})
-            # Format RA and Dec to 6 decimal places as strings
+            # Format RA and Dec preserving full precision but displaying minimum 6 decimals
             ra_val = coords.get("ra", 0.0)
             dec_val = coords.get("dec", 0.0)
-            self.target_ra.set(f"{ra_val:.6f}")
-            self.target_dec.set(f"{dec_val:.6f}")
+            ra_str = f"{ra_val:.10f}".rstrip('0').rstrip('.')
+            if '.' not in ra_str or len(ra_str.split('.')[1]) < 6:
+                ra_str = f"{ra_val:.6f}"
+            dec_str = f"{dec_val:.10f}".rstrip('0').rstrip('.')
+            if '.' not in dec_str or len(dec_str.split('.')[1]) < 6:
+                dec_str = f"{dec_val:.6f}"
+            self.target_ra.set(ra_str)
+            self.target_dec.set(dec_str)
             self.target_ra_str.set(coords.get("ra_str", ""))
             self.target_dec_str.set(coords.get("dec_str", ""))
             mags = target_config.get("magnitudes", {})
