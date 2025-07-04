@@ -90,8 +90,9 @@ class MainWindow:
         target_entry.grid(row=0, column=1, padx=5, pady=5)
         target_entry.bind('<Return>', self.on_target_name_enter)
         
-        # Search button for target name
-        self.search_target_btn = ttk.Button(frame, text="Search", command=self.lookup_target)
+        # Search button for target name (using tk.Button for better color support)
+        self.search_target_btn = tk.Button(frame, text="Search", command=self.lookup_target, 
+                                         relief="raised", borderwidth=1)
         self.search_target_btn.grid(row=0, column=2, padx=5, pady=5)
         
         # Coordinates section
@@ -103,8 +104,9 @@ class MainWindow:
         ra_entry.grid(row=2, column=1, sticky="w", padx=5, pady=5)
         ra_entry.bind('<Return>', self.on_coordinates_enter)
         
-        # Search button for coordinates
-        self.search_coord_btn = ttk.Button(frame, text="Search", command=self.search_by_coordinates)
+        # Search button for coordinates (using tk.Button for better color support)
+        self.search_coord_btn = tk.Button(frame, text="Search", command=self.search_by_coordinates,
+                                        relief="raised", borderwidth=1)
         self.search_coord_btn.grid(row=2, column=2, padx=5, pady=5)
         
         ttk.Label(frame, text="Dec (degrees):").grid(row=3, column=0, sticky="w", padx=5, pady=5)
@@ -240,14 +242,11 @@ class MainWindow:
                 messagebox.showerror("Error", "Dec must be between -90 and +90 degrees.")
                 return
             
-            # Provide visual feedback
+            # Provide visual feedback only (no popup)
             self.set_button_success(self.search_coord_btn)
             
-            # For now, just show coordinates are valid
+            # Coordinates are valid - visual feedback shows success
             # Future implementation could search star catalogs by coordinates
-            messagebox.showinfo("Coordinates Valid", 
-                              f"Coordinates validated:\nRA: {ra_val:.6f}°\nDec: {dec_val:+.6f}°\n\n"
-                              f"Note: Coordinate-based target lookup not yet implemented.")
             
         except ValueError:
             messagebox.showerror("Error", "Invalid coordinate format. Please enter numeric values.")
@@ -256,18 +255,30 @@ class MainWindow:
     
     def set_button_success(self, button):
         """Set button to green for success feedback."""
-        # Reset all search buttons to default
-        self.reset_button_colors()
-        # Set the successful button to green (using ttk style)
-        button.configure(style="Success.TButton")
-        # Schedule reset after 2 seconds
-        self.root.after(2000, self.reset_button_colors)
+        # Store original text
+        original_text = button.cget('text')
+        # Change to success appearance with checkmark
+        button.configure(text="✓ Success", fg="green", font=("Arial", 9, "bold"),
+                        relief="solid", borderwidth=2)
+        # Force update immediately
+        self.root.update()
+        # Schedule reset after 3 seconds
+        self.root.after(3000, lambda: self.reset_button_color(button, original_text))
+    
+    def reset_button_color(self, button, original_text="Search"):
+        """Reset specific button to default color."""
+        try:
+            # Reset to default button appearance
+            button.configure(text=original_text, fg="black", font=("Arial", 9, "normal"),
+                           relief="raised", borderwidth=1)
+        except Exception as e:
+            pass
     
     def reset_button_colors(self):
         """Reset all search buttons to default color."""
         try:
-            self.search_target_btn.configure(style="TButton")
-            self.search_coord_btn.configure(style="TButton")
+            self.reset_button_color(self.search_target_btn, "Search")
+            self.reset_button_color(self.search_coord_btn, "Search")
         except:
             pass  # Ignore if buttons don't exist yet
     
