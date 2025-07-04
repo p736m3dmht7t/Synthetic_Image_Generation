@@ -149,13 +149,9 @@ class MainWindow:
             target_info = catalog_query.lookup_target(target_name)
             
             if target_info:
-                # Populate coordinate fields preserving full precision but displaying minimum 6 decimals
-                ra_str = f"{target_info['ra_deg']:.10f}".rstrip('0').rstrip('.')
-                if '.' not in ra_str or len(ra_str.split('.')[1]) < 6:
-                    ra_str = f"{target_info['ra_deg']:.6f}"
-                dec_str = f"{target_info['dec_deg']:.10f}".rstrip('0').rstrip('.')
-                if '.' not in dec_str or len(dec_str.split('.')[1]) < 6:
-                    dec_str = f"{target_info['dec_deg']:.6f}"
+                # Populate coordinate fields with exactly 6 decimal places
+                ra_str = f"{target_info['ra_deg']:.6f}"
+                dec_str = f"{target_info['dec_deg']:+.6f}"  # Always show sign for Dec
                 self.target_ra.set(ra_str)
                 self.target_dec.set(dec_str)
                 self.target_ra_str.set(target_info['ra_str'])
@@ -164,12 +160,20 @@ class MainWindow:
                 # Populate magnitude fields (only if values are available) with proper formatting
                 if target_info['magnitudes']['B'] is not None:
                     self.target_mag_b.set(f"{target_info['magnitudes']['B']:.3f}")
+                else:
+                    self.target_mag_b.set("")
                 if target_info['magnitudes']['V'] is not None:
                     self.target_mag_v.set(f"{target_info['magnitudes']['V']:.3f}")
+                else:
+                    self.target_mag_v.set("")
                 if target_info['magnitudes']['R'] is not None:
                     self.target_mag_r.set(f"{target_info['magnitudes']['R']:.3f}")
+                else:
+                    self.target_mag_r.set("")  # Clear R magnitude if not available
                 if target_info['magnitudes']['I'] is not None:
                     self.target_mag_i.set(f"{target_info['magnitudes']['I']:.3f}")
+                else:
+                    self.target_mag_i.set("")
                 
                 # Update target name to canonical form
                 self.target_name.set(target_info['name'])
@@ -489,29 +493,23 @@ class MainWindow:
             target_config = self.config_manager.load_target_config()
             self.target_name.set(target_config.get("target_name", ""))
             coords = target_config.get("coordinates", {})
-            # Format RA and Dec preserving full precision but displaying minimum 6 decimals
+            # Format RA and Dec with exactly 6 decimal places
             ra_val = coords.get("ra", 0.0)
             dec_val = coords.get("dec", 0.0)
-            ra_str = f"{ra_val:.10f}".rstrip('0').rstrip('.')
-            if '.' not in ra_str or len(ra_str.split('.')[1]) < 6:
-                ra_str = f"{ra_val:.6f}"
-            dec_str = f"{dec_val:.10f}".rstrip('0').rstrip('.')
-            if '.' not in dec_str or len(dec_str.split('.')[1]) < 6:
-                dec_str = f"{dec_val:.6f}"
-            self.target_ra.set(ra_str)
-            self.target_dec.set(dec_str)
+            self.target_ra.set(f"{ra_val:.6f}")
+            self.target_dec.set(f"{dec_val:+.6f}")  # Always show sign for Dec
             self.target_ra_str.set(coords.get("ra_str", ""))
             self.target_dec_str.set(coords.get("dec_str", ""))
             mags = target_config.get("magnitudes", {})
-            # Format magnitudes to 3 decimal places as strings
-            b_val = mags.get("B", 0.0)
-            v_val = mags.get("V", 0.0)
-            r_val = mags.get("R", 0.0)
-            i_val = mags.get("I", 0.0)
-            self.target_mag_b.set(f"{b_val:.3f}" if b_val != 0.0 else "0.000")
-            self.target_mag_v.set(f"{v_val:.3f}" if v_val != 0.0 else "0.000")
-            self.target_mag_r.set(f"{r_val:.3f}" if r_val != 0.0 else "0.000")
-            self.target_mag_i.set(f"{i_val:.3f}" if i_val != 0.0 else "0.000")
+            # Format magnitudes to 3 decimal places as strings, handle None values
+            b_val = mags.get("B", None)
+            v_val = mags.get("V", None)
+            r_val = mags.get("R", None)
+            i_val = mags.get("I", None)
+            self.target_mag_b.set(f"{b_val:.3f}" if b_val is not None and b_val != 0.0 else "")
+            self.target_mag_v.set(f"{v_val:.3f}" if v_val is not None and v_val != 0.0 else "")
+            self.target_mag_r.set(f"{r_val:.3f}" if r_val is not None and r_val != 0.0 else "")
+            self.target_mag_i.set(f"{i_val:.3f}" if i_val is not None and i_val != 0.0 else "")
             self.target_notes.delete(1.0, tk.END)
             self.target_notes.insert(1.0, target_config.get("notes", ""))
             
@@ -572,10 +570,10 @@ class MainWindow:
             # Convert string values back to numbers for saving
             ra_val = float(self.target_ra.get()) if self.target_ra.get() else 0.0
             dec_val = float(self.target_dec.get()) if self.target_dec.get() else 0.0
-            b_val = float(self.target_mag_b.get()) if self.target_mag_b.get() else 0.0
-            v_val = float(self.target_mag_v.get()) if self.target_mag_v.get() else 0.0
-            r_val = float(self.target_mag_r.get()) if self.target_mag_r.get() else 0.0
-            i_val = float(self.target_mag_i.get()) if self.target_mag_i.get() else 0.0
+            b_val = float(self.target_mag_b.get()) if self.target_mag_b.get().strip() else None
+            v_val = float(self.target_mag_v.get()) if self.target_mag_v.get().strip() else None
+            r_val = float(self.target_mag_r.get()) if self.target_mag_r.get().strip() else None
+            i_val = float(self.target_mag_i.get()) if self.target_mag_i.get().strip() else None
         except ValueError:
             messagebox.showerror("Error", "Invalid numeric values in coordinate or magnitude fields!")
             return
