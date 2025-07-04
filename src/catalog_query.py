@@ -458,8 +458,26 @@ class CatalogQuery:
                 print(f"No objects found at coordinates RA={ra_deg:.6f}°, Dec={dec_deg:.6f}°")
                 return None
             
-            # Take the closest result (first in the table)
-            target_data = result_table[0]
+            # Calculate distances for all results and find the closest
+            min_distance = float('inf')
+            closest_target = None
+            
+            for row in result_table:
+                # Get coordinates from each result
+                obj_ra_deg = float(row['ra'])
+                obj_dec_deg = float(row['dec'])
+                obj_coord = SkyCoord(ra=obj_ra_deg*u.deg, dec=obj_dec_deg*u.deg)
+                
+                # Calculate separation
+                separation = coord.separation(obj_coord).arcsec
+                
+                if separation < min_distance:
+                    min_distance = separation
+                    closest_target = row
+            
+            # Use the closest target
+            target_data = closest_target
+            print(f"Selected closest object at {min_distance:.2f} arcsec separation")
             
             # Get coordinates from Simbad result (handle direct degree format)
             simbad_ra_deg = float(target_data['ra'])
