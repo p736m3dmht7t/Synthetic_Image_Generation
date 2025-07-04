@@ -229,11 +229,8 @@ class ImageGenerator:
             # Get target magnitude for this band
             target_magnitude = self.target_config.get('magnitudes', {}).get(band)
             if target_magnitude is None or target_magnitude == 0:
-                print(f"Warning: No target magnitude specified for {band} band, using V magnitude")
-                target_magnitude = self.target_config.get('magnitudes', {}).get('V', 0)
-                if target_magnitude is None or target_magnitude == 0:
-                    print(f"Error: No V magnitude available for fallback")
-                    return None
+                print(f"Skipping {band} band: No target magnitude specified")
+                return None
             
             # Get saturation limit
             saturation_limit = self.camera_config.get('saturation_limit', 65535)
@@ -268,10 +265,11 @@ class ImageGenerator:
             return None
     
     def generate_all_band_images(self):
-        """Generate images for all photometric bands (V, B, R, I)."""
+        """Generate images for all photometric bands (V, B, R, I) that have magnitudes."""
         try:
             bands = ['V', 'B', 'R', 'I']
             self.images = {}
+            skipped_bands = []
             
             for band in bands:
                 print(f"\n--- Generating {band} Band ---")
@@ -281,10 +279,16 @@ class ImageGenerator:
                     self.images[band] = image
                     print(f"{band} band: {image.shape}, dtype={image.dtype}")
                 else:
-                    print(f"Failed to generate {band} band image")
-                    return False
+                    skipped_bands.append(band)
+                    print(f"Skipped {band} band (no magnitude available)")
+            
+            if len(self.images) == 0:
+                print("Error: No band images could be generated (no magnitudes available)")
+                return False
             
             print(f"\nSuccessfully generated {len(self.images)} band images")
+            if skipped_bands:
+                print(f"Skipped bands due to missing magnitudes: {', '.join(skipped_bands)}")
             return True
             
         except Exception as e:
