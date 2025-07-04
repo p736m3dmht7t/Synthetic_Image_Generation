@@ -105,7 +105,7 @@ class MainWindow:
         ttk.Label(frame, text="Magnitudes", font=("Arial", 10, "bold")).grid(row=6, column=0, columnspan=2, sticky="w", padx=5, pady=(15,5))
         
         ttk.Label(frame, text="B magnitude:").grid(row=7, column=0, sticky="w", padx=5, pady=5)
-        self.target_mag_b = tk.DoubleVar()
+        self.target_mag_b = tk.StringVar()
         ttk.Entry(frame, textvariable=self.target_mag_b, width=10).grid(row=7, column=1, sticky="w", padx=5, pady=5)
         
         ttk.Label(frame, text="V magnitude:").grid(row=8, column=0, sticky="w", padx=5, pady=5)
@@ -117,7 +117,7 @@ class MainWindow:
         ttk.Entry(frame, textvariable=self.target_mag_r, width=10).grid(row=9, column=1, sticky="w", padx=5, pady=5)
         
         ttk.Label(frame, text="I magnitude:").grid(row=10, column=0, sticky="w", padx=5, pady=5)
-        self.target_mag_i = tk.DoubleVar()
+        self.target_mag_i = tk.StringVar()
         ttk.Entry(frame, textvariable=self.target_mag_i, width=10).grid(row=10, column=1, sticky="w", padx=5, pady=5)
         
         # Notes
@@ -568,12 +568,21 @@ class MainWindow:
         """Save target configuration."""
         try:
             # Convert string values back to numbers for saving
-            ra_val = float(self.target_ra.get()) if self.target_ra.get() else 0.0
-            dec_val = float(self.target_dec.get()) if self.target_dec.get() else 0.0
-            b_val = float(self.target_mag_b.get()) if self.target_mag_b.get().strip() else None
-            v_val = float(self.target_mag_v.get()) if self.target_mag_v.get().strip() else None
-            r_val = float(self.target_mag_r.get()) if self.target_mag_r.get().strip() else None
-            i_val = float(self.target_mag_i.get()) if self.target_mag_i.get().strip() else None
+            ra_str = self.target_ra.get().strip()
+            dec_str = self.target_dec.get().strip()
+            ra_val = float(ra_str) if ra_str else 0.0
+            dec_val = float(dec_str) if dec_str else 0.0
+            
+            # Handle magnitude strings - convert to float if not empty, otherwise None
+            b_str = self.target_mag_b.get().strip()
+            v_str = self.target_mag_v.get().strip()
+            r_str = self.target_mag_r.get().strip()
+            i_str = self.target_mag_i.get().strip()
+            
+            b_val = float(b_str) if b_str else None
+            v_val = float(v_str) if v_str else None
+            r_val = float(r_str) if r_str else None
+            i_val = float(i_str) if i_str else None
         except ValueError:
             messagebox.showerror("Error", "Invalid numeric values in coordinate or magnitude fields!")
             return
