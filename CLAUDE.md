@@ -39,3 +39,4 @@ This is a new project directory. The typical structure for a synthetic image gen
 6. Make every task and code change you do as simple as possible. We want to avoid making any massive or complex changes. Every change should impact as little code as possible. Everything is about simplicity.
 7. Finally, add a review section to the [todo.md](http://todo.md/) file with a summary of the changes you made and any other relevant information.
 8. Follow my preferred commenting style in ./comment_style.md
+9. When working on github.com issues, allow the human to test the fix before pushing it.

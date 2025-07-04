@@ -4,9 +4,9 @@
   "focal_length_mm": 349.8,
   "focal_ratio": 4.9,
   "seeing": {
-    "theoretical_arcsec": 0.0,
+    "theoretical_arcsec": 1.63,
     "atmospheric_arcsec": 1.5,
-    "combined_fwhm_arcsec": 0.0
+    "combined_fwhm_arcsec": 2.22
   },
   "notes": ""
 }

@@ -1,13 +1,13 @@
 {
-  "camera_name": "ZWO ASI183MM Pro",
+  "camera_name": "William Optics RedCat71",
   "pixel_size_microns": 2.4,
   "sensor_dimensions": {
     "width_pixels": 5496,
     "height_pixels": 3672,
-    "width_mm": 0.0,
-    "height_mm": 0.0
+    "width_mm": 10.992,
+    "height_mm": 7.344
   },
-  "rotation_degrees": 0.0,
+  "rotation_degrees": 28.0,
   "saturation_limit": 65504,
   "notes": ""
 }
