@@ -499,7 +499,7 @@ class MainWindow:
                 header_json = json.dumps(fits_header_config, indent=2)
                 self.fits_header_text.insert(1.0, header_json)
             
-            messagebox.showinfo("Success", "All configurations loaded successfully!")
+            # Configuration loaded successfully (removed excessive info popup)
             
         except Exception as e:
             messagebox.showerror("Error", f"Error loading configurations: {str(e)}")
@@ -511,7 +511,7 @@ class MainWindow:
             self.save_telescope_config()
             self.save_camera_config()
             self.save_fits_header_config()
-            messagebox.showinfo("Success", "All configurations saved successfully!")
+            # All configurations saved successfully (removed excessive info popup)
         except Exception as e:
             messagebox.showerror("Error", f"Error saving configurations: {str(e)}")
     
@@ -534,9 +534,7 @@ class MainWindow:
             "notes": self.target_notes.get(1.0, tk.END).strip()
         }
         
-        if self.config_manager.save_target_config(config):
-            messagebox.showinfo("Success", "Target configuration saved!")
-        else:
+        if not self.config_manager.save_target_config(config):
             messagebox.showerror("Error", "Failed to save target configuration!")
     
     def save_telescope_config(self):
@@ -554,9 +552,7 @@ class MainWindow:
             "notes": self.telescope_notes.get(1.0, tk.END).strip()
         }
         
-        if self.config_manager.save_telescope_config(config):
-            messagebox.showinfo("Success", "Telescope configuration saved!")
-        else:
+        if not self.config_manager.save_telescope_config(config):
             messagebox.showerror("Error", "Failed to save telescope configuration!")
     
     def save_camera_config(self):
@@ -575,9 +571,7 @@ class MainWindow:
             "notes": self.camera_notes.get(1.0, tk.END).strip()
         }
         
-        if self.config_manager.save_camera_config(config):
-            messagebox.showinfo("Success", "Camera configuration saved!")
-        else:
+        if not self.config_manager.save_camera_config(config):
             messagebox.showerror("Error", "Failed to save camera configuration!")
     
     def save_fits_header_config(self):
@@ -587,9 +581,7 @@ class MainWindow:
             header_text = self.fits_header_text.get(1.0, tk.END).strip()
             if header_text:
                 config = json.loads(header_text)
-                if self.config_manager.save_fits_header_config(config):
-                    messagebox.showinfo("Success", "FITS header configuration saved!")
-                else:
+                if not self.config_manager.save_fits_header_config(config):
                     messagebox.showerror("Error", "Failed to save FITS header configuration!")
             else:
                 messagebox.showwarning("Warning", "No FITS header data to save!")
