@@ -399,11 +399,11 @@ class CatalogQuery:
             # Format Dec string with 1 decimal place for seconds and always show sign
             dec_str_formatted = coord.dec.to_string(unit=u.deg, sep=':', precision=1, alwayssign=True)
             
-            # Format magnitudes to 3 significant figures
+            # Format magnitudes to 3 decimal places
             def format_magnitude(mag):
                 if mag is None:
                     return None
-                return float(f"{mag:.3g}")
+                return round(float(mag), 3)
             
             target_info = {
                 'name': target_data['main_id'].decode('utf-8') if isinstance(target_data['main_id'], bytes) else str(target_data['main_id']),
