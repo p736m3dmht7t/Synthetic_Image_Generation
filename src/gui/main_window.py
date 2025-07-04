@@ -117,11 +117,20 @@ class MainWindow:
         
         ttk.Label(frame, text="RA (HH:MM:SS):").grid(row=4, column=0, sticky="w", padx=5, pady=5)
         self.target_ra_str = tk.StringVar()
-        ttk.Entry(frame, textvariable=self.target_ra_str, width=15).grid(row=4, column=1, sticky="w", padx=5, pady=5)
+        ra_str_entry = ttk.Entry(frame, textvariable=self.target_ra_str, width=15)
+        ra_str_entry.grid(row=4, column=1, sticky="w", padx=5, pady=5)
+        ra_str_entry.bind('<Return>', self.on_hexagesimal_enter)
+        
+        # Search button for hexagesimal coordinates (using tk.Button for better color support)
+        self.search_hex_btn = tk.Button(frame, text="Search", command=self.search_by_hexagesimal,
+                                       relief="raised", borderwidth=1)
+        self.search_hex_btn.grid(row=4, column=2, padx=5, pady=5)
         
         ttk.Label(frame, text="Dec (+DD:MM:SS):").grid(row=5, column=0, sticky="w", padx=5, pady=5)
         self.target_dec_str = tk.StringVar()
-        ttk.Entry(frame, textvariable=self.target_dec_str, width=15).grid(row=5, column=1, sticky="w", padx=5, pady=5)
+        dec_str_entry = ttk.Entry(frame, textvariable=self.target_dec_str, width=15)
+        dec_str_entry.grid(row=5, column=1, sticky="w", padx=5, pady=5)
+        dec_str_entry.bind('<Return>', self.on_hexagesimal_enter)
         
         # Magnitudes section
         ttk.Label(frame, text="Magnitudes", font=("Arial", 10, "bold")).grid(row=6, column=0, columnspan=2, sticky="w", padx=5, pady=(15,5))
@@ -220,6 +229,10 @@ class MainWindow:
         """Handle Enter key press in coordinate fields."""
         self.search_by_coordinates()
     
+    def on_hexagesimal_enter(self, event=None):
+        """Handle Enter key press in hexagesimal coordinate fields."""
+        self.search_by_hexagesimal()
+    
     def search_by_coordinates(self):
         """Search for target by RA/Dec coordinates in Simbad database."""
         try:
@@ -297,6 +310,83 @@ class MainWindow:
             # Reset cursor
             self.root.config(cursor="")
     
+    def search_by_hexagesimal(self):
+        """Search for target by RA/Dec hexagesimal coordinates in Simbad database."""
+        try:
+            ra_str = self.target_ra_str.get().strip()
+            dec_str = self.target_dec_str.get().strip()
+            
+            if not ra_str or not dec_str:
+                messagebox.showwarning("Warning", "Please enter both RA and Dec in HH:MM:SS format.")
+                return
+            
+            # Parse hexagesimal coordinates to degrees
+            try:
+                from astropy.coordinates import SkyCoord
+                from astropy import units as u
+                
+                # Parse RA and Dec strings - SkyCoord can handle various formats
+                coord = SkyCoord(ra=ra_str, dec=dec_str, unit=(u.hourangle, u.deg))
+                ra_deg = coord.ra.deg
+                dec_deg = coord.dec.deg
+                
+            except Exception as parse_error:
+                messagebox.showerror("Error", f"Invalid coordinate format. Please use HH:MM:SS for RA and +DD:MM:SS for Dec.\n\nExample: RA: 22:29:10.26, Dec: +58:24:54.7\n\nError: {str(parse_error)}")
+                return
+            
+            # Import and create catalog query instance
+            from catalog_query import CatalogQuery
+            catalog_query = CatalogQuery()
+            
+            # Show progress
+            self.root.config(cursor="wait")
+            self.root.update()
+            
+            # Lookup target by converted coordinates
+            target_info = catalog_query.lookup_target_by_coordinates(ra_deg, dec_deg)
+            
+            if target_info:
+                # Update all fields with Simbad data
+                self.target_name.set(target_info['name'])
+                
+                # Update coordinate fields with Simbad precision
+                ra_deg_str = f"{target_info['ra_deg']:.6f}"
+                dec_deg_str = f"{target_info['dec_deg']:+.6f}"  # Always show sign for Dec
+                self.target_ra.set(ra_deg_str)
+                self.target_dec.set(dec_deg_str)
+                self.target_ra_str.set(target_info['ra_str'])
+                self.target_dec_str.set(target_info['dec_str'])
+                
+                # Update magnitude fields with proper formatting
+                if target_info['magnitudes']['B'] is not None:
+                    self.target_mag_b.set(f"{target_info['magnitudes']['B']:.3f}")
+                else:
+                    self.target_mag_b.set("")
+                if target_info['magnitudes']['V'] is not None:
+                    self.target_mag_v.set(f"{target_info['magnitudes']['V']:.3f}")
+                else:
+                    self.target_mag_v.set("")
+                if target_info['magnitudes']['R'] is not None:
+                    self.target_mag_r.set(f"{target_info['magnitudes']['R']:.3f}")
+                else:
+                    self.target_mag_r.set("")
+                if target_info['magnitudes']['I'] is not None:
+                    self.target_mag_i.set(f"{target_info['magnitudes']['I']:.3f}")
+                else:
+                    self.target_mag_i.set("")
+                
+                # Provide visual feedback for success
+                self.set_button_success(self.search_hex_btn)
+            else:
+                messagebox.showinfo("No Results", f"No objects found at coordinates:\nRA: {ra_str}\nDec: {dec_str}")
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"Error searching hexagesimal coordinates: {str(e)}")
+        
+        finally:
+            # Reset cursor
+            self.root.config(cursor="")
+    
     def set_button_success(self, button):
         """Set button to green for success feedback."""
         # Store original text
@@ -323,6 +413,7 @@ class MainWindow:
         try:
             self.reset_button_color(self.search_target_btn, "Search")
             self.reset_button_color(self.search_coord_btn, "Search")
+            self.reset_button_color(self.search_hex_btn, "Search")
         except:
             pass  # Ignore if buttons don't exist yet
     
