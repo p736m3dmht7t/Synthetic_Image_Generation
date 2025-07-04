@@ -86,11 +86,11 @@ class MainWindow:
         ttk.Label(frame, text="Coordinates", font=("Arial", 10, "bold")).grid(row=1, column=0, columnspan=2, sticky="w", padx=5, pady=(15,5))
         
         ttk.Label(frame, text="RA (degrees):").grid(row=2, column=0, sticky="w", padx=5, pady=5)
-        self.target_ra = tk.DoubleVar()
+        self.target_ra = tk.StringVar()
         ttk.Entry(frame, textvariable=self.target_ra, width=15).grid(row=2, column=1, sticky="w", padx=5, pady=5)
         
         ttk.Label(frame, text="Dec (degrees):").grid(row=3, column=0, sticky="w", padx=5, pady=5)
-        self.target_dec = tk.DoubleVar()
+        self.target_dec = tk.StringVar()
         ttk.Entry(frame, textvariable=self.target_dec, width=15).grid(row=3, column=1, sticky="w", padx=5, pady=5)
         
         ttk.Label(frame, text="RA (string):").grid(row=4, column=0, sticky="w", padx=5, pady=5)
@@ -109,11 +109,11 @@ class MainWindow:
         ttk.Entry(frame, textvariable=self.target_mag_b, width=10).grid(row=7, column=1, sticky="w", padx=5, pady=5)
         
         ttk.Label(frame, text="V magnitude:").grid(row=8, column=0, sticky="w", padx=5, pady=5)
-        self.target_mag_v = tk.DoubleVar()
+        self.target_mag_v = tk.StringVar()
         ttk.Entry(frame, textvariable=self.target_mag_v, width=10).grid(row=8, column=1, sticky="w", padx=5, pady=5)
         
         ttk.Label(frame, text="R magnitude:").grid(row=9, column=0, sticky="w", padx=5, pady=5)
-        self.target_mag_r = tk.DoubleVar()
+        self.target_mag_r = tk.StringVar()
         ttk.Entry(frame, textvariable=self.target_mag_r, width=10).grid(row=9, column=1, sticky="w", padx=5, pady=5)
         
         ttk.Label(frame, text="I magnitude:").grid(row=10, column=0, sticky="w", padx=5, pady=5)
@@ -149,21 +149,21 @@ class MainWindow:
             target_info = catalog_query.lookup_target(target_name)
             
             if target_info:
-                # Populate coordinate fields
-                self.target_ra.set(target_info['ra_deg'])
-                self.target_dec.set(target_info['dec_deg'])
+                # Populate coordinate fields with proper formatting
+                self.target_ra.set(f"{target_info['ra_deg']:.6f}")
+                self.target_dec.set(f"{target_info['dec_deg']:.6f}")
                 self.target_ra_str.set(target_info['ra_str'])
                 self.target_dec_str.set(target_info['dec_str'])
                 
-                # Populate magnitude fields (only if values are available)
+                # Populate magnitude fields (only if values are available) with proper formatting
                 if target_info['magnitudes']['B'] is not None:
-                    self.target_mag_b.set(target_info['magnitudes']['B'])
+                    self.target_mag_b.set(f"{target_info['magnitudes']['B']:.3f}")
                 if target_info['magnitudes']['V'] is not None:
-                    self.target_mag_v.set(target_info['magnitudes']['V'])
+                    self.target_mag_v.set(f"{target_info['magnitudes']['V']:.3f}")
                 if target_info['magnitudes']['R'] is not None:
-                    self.target_mag_r.set(target_info['magnitudes']['R'])
+                    self.target_mag_r.set(f"{target_info['magnitudes']['R']:.3f}")
                 if target_info['magnitudes']['I'] is not None:
-                    self.target_mag_i.set(target_info['magnitudes']['I'])
+                    self.target_mag_i.set(f"{target_info['magnitudes']['I']:.3f}")
                 
                 # Update target name to canonical form
                 self.target_name.set(target_info['name'])
@@ -483,23 +483,23 @@ class MainWindow:
             target_config = self.config_manager.load_target_config()
             self.target_name.set(target_config.get("target_name", ""))
             coords = target_config.get("coordinates", {})
-            # Format RA and Dec to 6 decimal places
+            # Format RA and Dec to 6 decimal places as strings
             ra_val = coords.get("ra", 0.0)
             dec_val = coords.get("dec", 0.0)
-            self.target_ra.set(float(f"{ra_val:.6f}"))
-            self.target_dec.set(float(f"{dec_val:.6f}"))
+            self.target_ra.set(f"{ra_val:.6f}")
+            self.target_dec.set(f"{dec_val:.6f}")
             self.target_ra_str.set(coords.get("ra_str", ""))
             self.target_dec_str.set(coords.get("dec_str", ""))
             mags = target_config.get("magnitudes", {})
-            # Format magnitudes to 3 decimal places
+            # Format magnitudes to 3 decimal places as strings
             b_val = mags.get("B", 0.0)
             v_val = mags.get("V", 0.0)
             r_val = mags.get("R", 0.0)
             i_val = mags.get("I", 0.0)
-            self.target_mag_b.set(round(b_val, 3) if b_val != 0.0 else 0.0)
-            self.target_mag_v.set(round(v_val, 3) if v_val != 0.0 else 0.0)
-            self.target_mag_r.set(round(r_val, 3) if r_val != 0.0 else 0.0)
-            self.target_mag_i.set(round(i_val, 3) if i_val != 0.0 else 0.0)
+            self.target_mag_b.set(f"{b_val:.3f}" if b_val != 0.0 else "0.000")
+            self.target_mag_v.set(f"{v_val:.3f}" if v_val != 0.0 else "0.000")
+            self.target_mag_r.set(f"{r_val:.3f}" if r_val != 0.0 else "0.000")
+            self.target_mag_i.set(f"{i_val:.3f}" if i_val != 0.0 else "0.000")
             self.target_notes.delete(1.0, tk.END)
             self.target_notes.insert(1.0, target_config.get("notes", ""))
             
@@ -556,19 +556,31 @@ class MainWindow:
     
     def save_target_config(self):
         """Save target configuration."""
+        try:
+            # Convert string values back to numbers for saving
+            ra_val = float(self.target_ra.get()) if self.target_ra.get() else 0.0
+            dec_val = float(self.target_dec.get()) if self.target_dec.get() else 0.0
+            b_val = float(self.target_mag_b.get()) if self.target_mag_b.get() else 0.0
+            v_val = float(self.target_mag_v.get()) if self.target_mag_v.get() else 0.0
+            r_val = float(self.target_mag_r.get()) if self.target_mag_r.get() else 0.0
+            i_val = float(self.target_mag_i.get()) if self.target_mag_i.get() else 0.0
+        except ValueError:
+            messagebox.showerror("Error", "Invalid numeric values in coordinate or magnitude fields!")
+            return
+            
         config = {
             "target_name": self.target_name.get(),
             "coordinates": {
-                "ra": self.target_ra.get(),
-                "dec": self.target_dec.get(),
+                "ra": ra_val,
+                "dec": dec_val,
                 "ra_str": self.target_ra_str.get(),
                 "dec_str": self.target_dec_str.get()
             },
             "magnitudes": {
-                "B": self.target_mag_b.get(),
-                "V": self.target_mag_v.get(),
-                "R": self.target_mag_r.get(),
-                "I": self.target_mag_i.get()
+                "B": b_val,
+                "V": v_val,
+                "R": r_val,
+                "I": i_val
             },
             "notes": self.target_notes.get(1.0, tk.END).strip()
         }
