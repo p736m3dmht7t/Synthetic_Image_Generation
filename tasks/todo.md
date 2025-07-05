@@ -140,3 +140,155 @@ Ready to begin Phase 1: Project Foundation
 
 ### Known Issues
 *Will track any issues discovered during development*
+
+## Flux Calculation Coefficient Review
+
+### Issue: Missing Literature References for GAIA-to-Johnson-Cousins Transformations
+
+**Location**: `src/catalog_query.py:195-208`
+
+**Problem**: The empirical transformation coefficients used to convert GAIA photometry (G, BP, RP) to Johnson-Cousins magnitudes (V, B, R, I) lack proper literature citations. The code contains only generic comments about "empirical transformations from literature" without specific references.
+
+**Current Coefficients**:
+- **V band**: V = G - 0.01760 - 0.006860×(BP-RP) - 0.1732×(BP-RP)²
+- **B band**: B = G + 0.3130 + 0.2271×(BP-RP) + 0.01397×(BP-RP)²
+- **R band**: R = G - 0.4980 - 0.0916×(BP-RP) - 0.0594×(BP-RP)²
+- **I band**: I = G - 0.7597 - 0.3346×(BP-RP) - 0.0424×(BP-RP)²
+
+**Required Actions**:
+1. **Literature Search**: Identify the original paper(s) that derived these specific coefficients
+2. **Coefficient Validation**: Verify coefficients against published transformations
+3. **Documentation Update**: Add proper citations to code comments
+4. **Alternative Transformations**: Research if more accurate/recent transformations exist
+5. **Uncertainty Analysis**: Determine transformation accuracy and color range validity
+
+**Potential Sources to Check**:
+- GAIA Data Release documentation
+- Photometric transformation papers in AJ, A&A, MNRAS
+- Recent studies comparing GAIA to Johnson-Cousins systems
+- ESA GAIA mission publications
+
+**Impact**: Without proper validation, synthetic image magnitudes may have systematic errors affecting flux calculations throughout the pipeline.
+
+### Issue: Custom PSF Implementation Instead of Scientific Libraries
+
+**Location**: `src/psf.py:21-96`
+
+**Problem**: The project implements PSF generation from scratch using basic NumPy operations rather than utilizing scientifically accepted and validated functions from astropy or photutils libraries.
+
+**Current Implementation**:
+- Manual Gaussian PSF: `psf = np.exp(-(X**2 + Y**2) / (2 * sigma_pixels**2))`
+- Manual Moffat PSF: `psf = (1 + (r / alpha)**2)**(-beta)`
+- Custom normalization and discretization algorithms
+
+**Required Actions**:
+1. **Library Integration**: Replace custom PSF functions with astropy/photutils equivalents
+2. **Scientific Validation**: Use peer-reviewed PSF models from established astronomy libraries
+3. **Enhanced Features**: Leverage advanced PSF capabilities (elliptical profiles, subpixel sampling)
+4. **Performance Optimization**: Benefit from optimized library implementations
+5. **Documentation**: Use well-documented, scientifically accepted PSF models
+
+**Potential Libraries to Use**:
+- `astropy.modeling.functional_models.Gaussian2D`
+- `astropy.modeling.functional_models.Moffat2D`
+- `photutils.psf` module for advanced PSF handling
+- `astropy.convolution` for PSF convolution operations
+
+**Impact**: Custom PSF implementations may lack scientific rigor, accuracy, and advanced features available in established astronomy libraries. Using validated scientific libraries ensures reproducible and accurate synthetic image generation.
+
+### Issue: Missing Realistic Sky Background Implementation
+
+**Location**: `src/image_generator.py`, `src/psf.py`, configuration files
+
+**Problem**: The synthetic image generation system produces unrealistic images with pure black backgrounds (ADU = 0), completely lacking sky background modeling that characterizes real astronomical observations. This fundamental omission severely limits the system's utility for realistic observation planning and photometry simulation.
+
+**Current State**:
+- Images created with `np.zeros()` - pure black backgrounds
+- No sky brightness implementation (mag/arcsec²)
+- No Bortle scale or light pollution modeling
+- No sky-related Poisson noise
+- No background flux calibration
+- Noise model only includes stellar photons + read noise
+
+**Required Implementation**:
+
+**1. Sky Configuration System**:
+- Create `config/sky.json` for observation site characterization
+- Include Bortle scale ratings (1-9)
+- Band-specific sky brightness values (V, B, R, I mag/arcsec²)
+- Typical values: Bortle 1 (22.0 mag/arcsec²), Bortle 4 (21.5), Bortle 7 (19.0)
+- Seasonal/lunar phase variations
+- Atmospheric extinction coefficients
+
+**2. Sky Brightness Calculation Module**:
+- `src/sky_background.py` - Dedicated sky modeling module
+- Convert Bortle scale to quantitative sky brightness
+- Band-dependent sky brightness lookup tables
+- Altitude/airmass corrections
+- Moon phase and position effects
+- Zodiacal light modeling
+
+**3. Background Flux Calibration**:
+- Use same zero point (25.0 mag) and target star reference (50% saturation)
+- Convert sky brightness (mag/arcsec²) to flux using Pogson's equation
+- Scale to ADU per pixel using plate scale and pixel size
+- Account for telescope aperture and exposure time
+- Ensure consistent flux calibration with stellar sources
+
+**4. Enhanced Noise Model**:
+- Add sky background Poisson noise: `sqrt(sky_adu_per_pixel)`
+- Total noise budget: `sqrt(star_adu + sky_adu + read_noise²)`
+- Background-limited vs. read-limited noise regimes
+- Proper signal-to-noise ratio calculations
+
+**5. Image Generation Integration**:
+- Modify `create_stellar_field()` to add uniform sky background
+- Apply sky ADU to entire image before placing sources
+- Include sky noise in total noise calculation
+- Provide realistic detection limits and photometry accuracy
+
+**6. Configuration Parameters**:
+```json
+{
+  "sky_conditions": {
+    "bortle_scale": 4,
+    "sky_brightness_mag_per_arcsec2": {
+      "V": 21.5,
+      "B": 22.8, 
+      "R": 20.8,
+      "I": 19.9
+    },
+    "atmospheric_extinction": {
+      "V": 0.12,
+      "B": 0.20,
+      "R": 0.08,
+      "I": 0.05
+    },
+    "moon_phase": 0.0,
+    "airmass": 1.2,
+    "zodiacal_light": true
+  }
+}
+```
+
+**7. GUI Integration**:
+- Add sky conditions panel to main GUI
+- Bortle scale selection widget
+- Sky brightness value display/editing
+- Preview of sky background level
+- Integration with existing configuration tabs
+
+**Scientific Considerations**:
+- Use established sky brightness measurements from literature
+- Implement proper photometric calibration chain
+- Account for telescope throughput and camera quantum efficiency
+- Include atmospheric extinction effects
+- Model realistic noise characteristics for different sky conditions
+
+**Validation Requirements**:
+- Compare synthetic images with real astronomical observations
+- Verify limiting magnitude calculations
+- Test photometry accuracy under various sky conditions
+- Validate signal-to-noise ratios for faint sources
+
+**Impact**: Without realistic sky background, synthetic images cannot accurately represent actual observing conditions, limiting their utility for observation planning, instrument testing, and photometric analysis. This implementation is critical for producing scientifically valid synthetic astronomical images.
