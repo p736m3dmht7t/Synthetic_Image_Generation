@@ -1,4 +1,4 @@
-# How To Generate Synthetic Photometry in Johnson-Kron-Cousins Standard Colors from GAIA High Resolution Spectra
+# Synthetic Photometry in Johnson-Kron-Cousins Standard Colors from GAIA High Resolution Spectra
 
 This guide explains how to generate synthetic photometry in Johnson-Kron-Cousins (JKC) standard colors using GAIA high resolution spectra.
 
@@ -29,7 +29,9 @@ coord = SkyCoord(ra=RA, dec=Dec, frame='icrs')
 width = u.Quantity(1, u.arcsec)
 height = u.Quantity(1, u.arcsec)
 r = Gaia.query_object_async(coordinate=coord, width=width, height=height)
+source_id = [ r['source_id'][0] ]
 ```
+The source_id may be a list of many objects.
 
 # Step 2: Generate the photometry from the BP and RP spectra
 ```python
