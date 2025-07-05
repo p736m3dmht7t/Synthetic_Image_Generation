@@ -1,0 +1,12 @@
+{
+  "telescope_name": "",
+  "aperture_mm": 0.0,
+  "focal_length_mm": 0.0,
+  "focal_ratio": 0.0,
+  "seeing": {
+    "theoretical_arcsec": 0.0,
+    "atmospheric_arcsec": 1.5,
+    "combined_fwhm_arcsec": 0.0
+  },
+  "notes": ""
+}

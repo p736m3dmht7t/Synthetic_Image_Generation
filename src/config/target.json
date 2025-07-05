@@ -1,0 +1,16 @@
+{
+  "target_name": "",
+  "coordinates": {
+    "ra": 0.0,
+    "dec": 0.0,
+    "ra_str": "",
+    "dec_str": ""
+  },
+  "magnitudes": {
+    "V": 0.0,
+    "B": 0.0,
+    "R": 0.0,
+    "I": 0.0
+  },
+  "notes": ""
+}

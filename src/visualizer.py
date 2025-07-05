@@ -38,6 +38,7 @@ class ImageVisualizer:
         self.colormap = 'gray'
         self.contrast = 1.0
         self.brightness = 0.0
+        self.invert_display = False  # Toggle for inverted display
     
     def load_images(self, images_dict):
         """
@@ -49,6 +50,7 @@ class ImageVisualizer:
         self.images = images_dict.copy()
         if self.images and self.current_band is None:
             self.current_band = list(self.images.keys())[0]
+        
         print(f"Loaded {len(self.images)} images for visualization")
     
     def load_fits_images(self, fits_files):
@@ -131,42 +133,105 @@ class ImageVisualizer:
         try:
             if stretch == 'zscale':
                 # Use ZScale algorithm (common in astronomy)
-                interval = ZScaleInterval()
-                vmin, vmax = interval.get_limits(image)
-                normalized = np.clip((image - vmin) / (vmax - vmin), 0, 1)
+                try:
+                    interval = ZScaleInterval()
+                    vmin, vmax = interval.get_limits(image)
+                    
+                    # Check if ZScale failed or returned unreasonable results
+                    img_min, img_max = np.min(image), np.max(image)
+                    if (vmin == vmax or not np.isfinite(vmin) or not np.isfinite(vmax) or 
+                        vmax < img_max * 0.1):  # ZScale max is less than 10% of actual max
+                        print(f"ZScale failed (returned [{vmin:.1f}, {vmax:.1f}] for image range [{img_min:.1f}, {img_max:.1f}]), using linear stretch")
+                        vmin, vmax = np.percentile(image, [0.1, 99.9])
+                        if vmin == vmax:
+                            vmin, vmax = img_min, img_max
+                    
+                    normalized = np.clip((image - vmin) / (vmax - vmin), 0, 1)
+                except Exception as e:
+                    print(f"ZScale error ({e}), using linear stretch")
+                    img_min, img_max = np.min(image), np.max(image)
+                    vmin, vmax = np.percentile(image, [0.1, 99.9])
+                    if vmin == vmax:
+                        vmin, vmax = img_min, img_max
+                    normalized = np.clip((image - vmin) / (vmax - vmin), 0, 1)
                 
             elif stretch == 'linear':
-                # Linear stretch using percentiles
-                vmin, vmax = np.percentile(image, [1, 99])
-                normalized = np.clip((image - vmin) / (vmax - vmin), 0, 1)
+                # Linear stretch - for astronomical images, use smart scaling
+                img_min, img_max = np.min(image), np.max(image)
+                
+                # Check if this looks like an astronomical image (high dynamic range)
+                dynamic_range = img_max / (img_min + 1e-10)  # Avoid division by zero
+                
+                if dynamic_range > 1000:  # High dynamic range suggests astronomical data
+                    # Use a small percentile for vmin and full max for vmax
+                    vmin = np.percentile(image, 0.1)  # Skip true zeros
+                    vmax = img_max
+                else:
+                    # Normal percentile stretch for regular images
+                    vmin, vmax = np.percentile(image, [1, 99])
+                
+                if vmin == vmax:  # Handle constant images
+                    normalized = np.ones_like(image) * 0.5
+                else:
+                    normalized = np.clip((image - vmin) / (vmax - vmin), 0, 1)
                 
             elif stretch == 'log':
                 # Logarithmic stretch
                 image_positive = image - np.min(image) + 1
                 log_image = np.log10(image_positive)
                 vmin, vmax = np.percentile(log_image, [1, 99])
-                normalized = np.clip((log_image - vmin) / (vmax - vmin), 0, 1)
+                if vmin == vmax:
+                    normalized = np.ones_like(image) * 0.5
+                else:
+                    normalized = np.clip((log_image - vmin) / (vmax - vmin), 0, 1)
                 
             elif stretch == 'sqrt':
-                # Square root stretch
-                image_positive = image - np.min(image)
+                # Square root stretch - for astronomical images, use smart scaling
+                img_min, img_max = np.min(image), np.max(image)
+                dynamic_range = img_max / (img_min + 1e-10)
+                
+                image_positive = image - img_min
                 sqrt_image = np.sqrt(image_positive)
-                vmin, vmax = np.percentile(sqrt_image, [1, 99])
-                normalized = np.clip((sqrt_image - vmin) / (vmax - vmin), 0, 1)
+                
+                if dynamic_range > 1000:  # Astronomical image
+                    vmin = np.sqrt(np.percentile(image_positive, 0.1))
+                    vmax = np.sqrt(img_max - img_min)
+                else:
+                    vmin, vmax = np.percentile(sqrt_image, [1, 99])
+                
+                if vmin == vmax:
+                    normalized = np.ones_like(image) * 0.5
+                else:
+                    normalized = np.clip((sqrt_image - vmin) / (vmax - vmin), 0, 1)
                 
             else:
                 # Default to linear
                 vmin, vmax = np.percentile(image, [1, 99])
-                normalized = np.clip((image - vmin) / (vmax - vmin), 0, 1)
+                if vmin == vmax:
+                    normalized = np.ones_like(image) * 0.5
+                else:
+                    normalized = np.clip((image - vmin) / (vmax - vmin), 0, 1)
             
             # Apply contrast and brightness adjustments
             normalized = np.clip(normalized * self.contrast + self.brightness, 0, 1)
+            
+            # Apply inversion if requested (for display only)
+            if self.invert_display:
+                normalized = 1.0 - normalized
             
             return normalized
             
         except Exception as e:
             print(f"Error normalizing image: {str(e)}")
-            return image
+            # Emergency fallback - simple linear normalization
+            try:
+                img_min, img_max = np.min(image), np.max(image)
+                if img_min == img_max:
+                    return np.ones_like(image) * 0.5
+                else:
+                    return np.clip((image - img_min) / (img_max - img_min), 0, 1)
+            except:
+                return image
     
     def create_matplotlib_figure(self, parent_frame, figsize=(8, 6)):
         """
@@ -203,6 +268,7 @@ class ImageVisualizer:
             show_sources (bool): Whether to show source overlay
         """
         try:
+            
             if not self.images:
                 print("No images loaded for visualization")
                 return
@@ -216,7 +282,7 @@ class ImageVisualizer:
             if show_sources is not None:
                 self.show_sources = show_sources
             
-            # Clear previous plot
+            # Just clear the figure - don't destroy/recreate canvas
             if self.figure:
                 self.figure.clear()
             
@@ -229,8 +295,25 @@ class ImageVisualizer:
             # Create subplot
             ax = self.figure.add_subplot(111)
             
-            # Display image
-            im = ax.imshow(normalized_image, cmap=self.colormap, origin='lower')
+            # Enhance display for sparse star fields
+            display_image = normalized_image.copy()
+            bright_pixels = normalized_image[normalized_image > 0.1]   # Values > 10% of max
+            
+            # For sparse astronomical images, enhance contrast dramatically
+            if len(bright_pixels) < normalized_image.size * 0.001:  # Less than 0.1% bright pixels
+                # More aggressive enhancement for tiny stars
+                gamma = 0.2  # Aggressive gamma for visibility
+                display_image = np.power(display_image, gamma)
+                
+                # Scale the non-zero values more aggressively
+                nonzero_mask = display_image > 0
+                if np.any(nonzero_mask):
+                    # Get the 95th percentile of non-zero values
+                    top_5_percent = np.percentile(display_image[nonzero_mask], 95)
+                    if top_5_percent > 0:
+                        display_image = np.clip(display_image / (top_5_percent * 0.5), 0, 1)
+            
+            im = ax.imshow(display_image, cmap=self.colormap, origin='lower', aspect='auto', interpolation='nearest')
             
             # Add source overlay
             if self.show_sources and self.source_data:
@@ -257,6 +340,8 @@ class ImageVisualizer:
             # Update canvas
             if self.canvas:
                 self.canvas.draw()
+            else:
+                print("WARNING: No canvas to update!")
             
             self.current_band = band
             
@@ -280,11 +365,12 @@ class ImageVisualizer:
             y_pixels = self.source_data.get('y_pixels', [])
             magnitudes = self.source_data.get(band, [])
             
+            
             if len(x_pixels) == 0:
                 return
             
-            # Plot sources with size based on brightness
-            if len(magnitudes) > 0:
+            # Handle case where magnitudes may not match positions
+            if len(magnitudes) > 0 and len(magnitudes) == len(x_pixels):
                 # Scale marker size inversely with magnitude (brighter = larger)
                 max_mag = np.max(magnitudes)
                 min_mag = np.min(magnitudes)
@@ -296,16 +382,20 @@ class ImageVisualizer:
                     marker_sizes = 10 + normalized_mags * 90
                 else:
                     marker_sizes = [20] * len(magnitudes)
+                
+                # Plot sources as circles
+                ax.scatter(x_pixels, y_pixels, s=marker_sizes, 
+                          facecolors='none', edgecolors='red', 
+                          alpha=0.7, linewidths=1)
             else:
+                # Fallback: show all positions with uniform size
                 marker_sizes = [20] * len(x_pixels)
-            
-            # Plot sources as circles
-            ax.scatter(x_pixels, y_pixels, s=marker_sizes, 
-                      facecolors='none', edgecolors='red', 
-                      alpha=0.7, linewidths=1)
+                ax.scatter(x_pixels, y_pixels, s=marker_sizes, 
+                          facecolors='none', edgecolors='red', 
+                          alpha=0.7, linewidths=1)
             
             # Add text for brightest sources
-            if len(magnitudes) > 0:
+            if len(magnitudes) > 0 and len(magnitudes) == len(x_pixels):
                 # Show labels for brightest 10 sources
                 bright_indices = np.argsort(magnitudes)[:min(10, len(magnitudes))]
                 
@@ -404,7 +494,7 @@ class ImageVisualizer:
             return False
     
     def update_display_settings(self, stretch=None, colormap=None, 
-                              contrast=None, brightness=None):
+                              contrast=None, brightness=None, invert_display=None):
         """
         Update display settings and refresh plot.
         
@@ -413,6 +503,7 @@ class ImageVisualizer:
             colormap (str): Colormap name
             contrast (float): Contrast adjustment
             brightness (float): Brightness adjustment
+            invert_display (bool): Whether to invert display
         """
         if stretch is not None:
             self.stretch = stretch
@@ -422,6 +513,8 @@ class ImageVisualizer:
             self.contrast = contrast
         if brightness is not None:
             self.brightness = brightness
+        if invert_display is not None:
+            self.invert_display = invert_display
         
         # Refresh current plot
         if self.current_band:

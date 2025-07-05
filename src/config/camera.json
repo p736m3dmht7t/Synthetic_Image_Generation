@@ -1,0 +1,13 @@
+{
+  "camera_name": "",
+  "pixel_size_microns": 0.0,
+  "sensor_dimensions": {
+    "width_pixels": 0,
+    "height_pixels": 0,
+    "width_mm": 0.0,
+    "height_mm": 0.0
+  },
+  "rotation_degrees": 0.0,
+  "saturation_limit": 65535,
+  "notes": ""
+}

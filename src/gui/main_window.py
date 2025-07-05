@@ -627,13 +627,8 @@ class MainWindow:
             notebook = ttk.Notebook(display_window)
             notebook.pack(fill="both", expand=True, padx=10, pady=10)
             
-            # Create visualizer
-            visualizer = ImageVisualizer()
-            visualizer.load_images(images)
-            if source_data:
-                visualizer.set_source_data(source_data)
-            
-            # Individual band tabs
+            # Individual band tabs - each gets its own visualizer
+            band_visualizers = {}
             for band in images.keys():
                 frame = ttk.Frame(notebook)
                 notebook.add(frame, text=f"{band} Band")
@@ -644,9 +639,9 @@ class MainWindow:
                 
                 # Display controls
                 ttk.Label(controls_frame, text="Stretch:").grid(row=0, column=0, padx=5)
-                stretch_var = tk.StringVar(value="zscale")
+                stretch_var = tk.StringVar(value="linear")  # Start with linear
                 stretch_combo = ttk.Combobox(controls_frame, textvariable=stretch_var, 
-                                           values=["zscale", "linear", "log", "sqrt"], width=10)
+                                           values=["linear", "zscale", "log", "sqrt"], width=10)
                 stretch_combo.grid(row=0, column=1, padx=5)
                 
                 ttk.Label(controls_frame, text="Colormap:").grid(row=0, column=2, padx=5)
@@ -661,20 +656,35 @@ class MainWindow:
                                               variable=show_sources_var)
                 sources_check.grid(row=0, column=4, padx=10)
                 
-                # Update button
-                def update_display(band=band, sv=stretch_var, cv=cmap_var, ssv=show_sources_var, viz=visualizer):
-                    viz.update_display_settings(stretch=sv.get(), colormap=cv.get())
+                # Invert display checkbox
+                invert_var = tk.BooleanVar()
+                invert_check = ttk.Checkbutton(controls_frame, text="Invert", 
+                                             variable=invert_var)
+                invert_check.grid(row=0, column=5, padx=10)
+                
+                # Create individual visualizer for this band
+                band_visualizer = ImageVisualizer()
+                band_visualizer.load_images({band: images[band]})  # Only load this band's image
+                if source_data:
+                    band_visualizer.set_source_data(source_data)
+                band_visualizers[band] = band_visualizer
+                
+                # Update function for this specific band
+                def update_display(band=band, sv=stretch_var, cv=cmap_var, ssv=show_sources_var, iv=invert_var, viz=band_visualizer):
+                    viz.update_display_settings(stretch=sv.get(), colormap=cv.get(), invert_display=iv.get())
                     viz.plot_image(band=band, show_sources=ssv.get())
                 
+                # Manual update button
                 update_btn = ttk.Button(controls_frame, text="Update", 
                                       command=update_display)
-                update_btn.grid(row=0, column=5, padx=10)
+                update_btn.grid(row=0, column=6, padx=10)
                 
-                # Create matplotlib figure
-                figure, canvas = visualizer.create_matplotlib_figure(frame, figsize=(10, 8))
+                # Create matplotlib figure for this band only
+                figure, canvas = band_visualizer.create_matplotlib_figure(frame, figsize=(10, 8))
                 
-                # Initial plot
-                visualizer.plot_image(band=band)
+                # Initial plot with better settings
+                band_visualizer.stretch = 'linear'  # Start with linear stretch
+                band_visualizer.plot_image(band=band)
             
             # Comparison tab
             comp_frame = ttk.Frame(notebook)
@@ -689,13 +699,10 @@ class MainWindow:
                                                 variable=comp_show_sources_var)
             comp_sources_check.pack(side="left", padx=10)
             
-            def update_comparison(viz=visualizer, ssv=comp_show_sources_var):
-                viz.show_sources = ssv.get()
-                viz.create_comparison_plot()
-            
-            comp_update_btn = ttk.Button(comp_controls_frame, text="Update Comparison", 
-                                       command=update_comparison)
-            comp_update_btn.pack(side="left", padx=10)
+            comp_invert_var = tk.BooleanVar()
+            comp_invert_check = ttk.Checkbutton(comp_controls_frame, text="Invert", 
+                                               variable=comp_invert_var)
+            comp_invert_check.pack(side="left", padx=10)
             
             # Create comparison figure
             comp_visualizer = ImageVisualizer()
@@ -703,11 +710,20 @@ class MainWindow:
             if source_data:
                 comp_visualizer.set_source_data(source_data)
             
+            def update_comparison(viz=comp_visualizer, ssv=comp_show_sources_var, iv=comp_invert_var):
+                viz.show_sources = ssv.get()
+                viz.invert_display = iv.get()
+                viz.create_comparison_plot()
+            
+            comp_update_btn = ttk.Button(comp_controls_frame, text="Update Comparison", 
+                                       command=update_comparison)
+            comp_update_btn.pack(side="left", padx=10)
+            
             comp_figure, comp_canvas = comp_visualizer.create_matplotlib_figure(comp_frame, figsize=(12, 8))
             comp_visualizer.create_comparison_plot()
             
             # Store references to prevent garbage collection
-            display_window.visualizer = visualizer
+            display_window.band_visualizers = band_visualizers
             display_window.comp_visualizer = comp_visualizer
             
         except Exception as e:

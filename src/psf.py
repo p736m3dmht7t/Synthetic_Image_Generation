@@ -135,27 +135,30 @@ class PSFGenerator:
     def calculate_target_adu(self, target_magnitude, saturation_limit, target_fraction=0.5):
         """
         Calculate target ADU value for the main target.
+        Sets target star to specified fraction of saturation regardless of magnitude.
         
         Args:
-            target_magnitude (float): Target magnitude
+            target_magnitude (float): Target magnitude (for reference, not used in calculation)
             saturation_limit (int): Camera saturation limit
             target_fraction (float): Fraction of saturation for target (default 0.5)
         
         Returns:
             float: Target ADU value
         """
-        return saturation_limit * target_fraction
+        target_adu = saturation_limit * target_fraction
+        print(f"Target magnitude {target_magnitude:.2f} -> {target_adu:.0f} ADU ({target_fraction*100:.0f}% of saturation)")
+        return target_adu
     
-    def place_psf_on_image(self, image, psf, x_center, y_center, flux):
+    def place_psf_on_image(self, image, psf, x_center, y_center, peak_adu):
         """
         Place a PSF at specified coordinates on an image.
         
         Args:
             image (numpy.ndarray): Target image array
-            psf (numpy.ndarray): PSF array
+            psf (numpy.ndarray): PSF array (normalized to sum=1)
             x_center (float): X coordinate of PSF center
             y_center (float): Y coordinate of PSF center
-            flux (float): Total flux for this source
+            peak_adu (float): Desired peak pixel value in ADU
         
         Returns:
             numpy.ndarray: Updated image array
@@ -191,9 +194,16 @@ class PSFGenerator:
             if (img_x_start < img_x_end and img_y_start < img_y_end and
                 psf_x_start < psf_x_end and psf_y_start < psf_y_end):
                 
+                # Calculate scaling factor to achieve desired peak pixel value
+                psf_peak = np.max(psf)
+                if psf_peak > 0:
+                    scale_factor = peak_adu / psf_peak
+                else:
+                    scale_factor = 0
+                
                 # Add scaled PSF to image
-                image[img_y_start:img_y_end, img_x_start:img_x_end] += \
-                    flux * psf[psf_y_start:psf_y_end, psf_x_start:psf_x_end]
+                scaled_psf = scale_factor * psf[psf_y_start:psf_y_end, psf_x_start:psf_x_end]
+                image[img_y_start:img_y_end, img_x_start:img_x_end] += scaled_psf
             
             return image
             
@@ -283,6 +293,12 @@ class PSFGenerator:
             # Calculate target flux (50% of saturation)
             target_adu = self.calculate_target_adu(target_magnitude, saturation_limit)
             
+            # First, place the target star at image center with correct brightness
+            center_x = image_shape[1] // 2
+            center_y = image_shape[0] // 2
+            print(f"Placing target star (mag {target_magnitude:.2f}) at center ({center_x}, {center_y}) with ADU {target_adu:.0f}")
+            image = self.place_psf_on_image(image, psf, center_x, center_y, target_adu)
+            
             # Get source coordinates and magnitudes
             x_pixels = source_data.get('x_pixels', [])
             y_pixels = source_data.get('y_pixels', [])
@@ -292,23 +308,22 @@ class PSFGenerator:
                 print(f"Warning: No sources found for band {band}")
                 return image
             
-            print(f"Placing {len(x_pixels)} sources in {band} band image")
+            print(f"Placing {len(x_pixels)} catalog sources in {band} band image")
             
-            # Calculate relative fluxes
-            target_flux = self.magnitude_to_flux(target_magnitude)
-            source_fluxes = self.magnitude_to_flux(magnitudes)
-            
-            # Scale fluxes to ADU units
-            flux_scale = target_adu / target_flux
-            source_adu = source_fluxes * flux_scale
+            # Calculate peak ADU for catalog sources relative to target
+            # Brighter sources (lower magnitude) get higher ADU values
+            magnitudes = np.array(magnitudes)
+            magnitude_diff = magnitudes - target_magnitude  # Positive for dimmer sources
+            relative_brightness = 10**(-magnitude_diff / 2.5)  # Standard magnitude scale
+            source_peak_adu = target_adu * relative_brightness
             
             # Place each source
-            for i, (x, y, adu) in enumerate(zip(x_pixels, y_pixels, source_adu)):
+            for i, (x, y, peak_adu) in enumerate(zip(x_pixels, y_pixels, source_peak_adu)):
                 # Apply saturation limit to individual source
-                adu_limited = min(adu, saturation_limit)
+                peak_adu_limited = min(peak_adu, saturation_limit)
                 
                 # Place PSF
-                image = self.place_psf_on_image(image, psf, x, y, adu_limited)
+                image = self.place_psf_on_image(image, psf, x, y, peak_adu_limited)
                 
                 # Progress indicator for large catalogs
                 if (i + 1) % 100 == 0:
