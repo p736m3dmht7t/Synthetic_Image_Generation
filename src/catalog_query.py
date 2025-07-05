@@ -11,6 +11,10 @@ from astropy import units as u
 from astroquery.gaia import Gaia
 from astroquery.simbad import Simbad
 import warnings
+try:
+    from .gaia_photometry import GaiaPhotometry
+except ImportError:
+    from gaia_photometry import GaiaPhotometry
 
 # Suppress astroquery warnings
 warnings.filterwarnings('ignore', category=UserWarning, module='astroquery')
@@ -23,6 +27,8 @@ class CatalogQuery:
         """Initialize the catalog query system."""
         self.gaia_table = None
         self.converted_magnitudes = None
+        self.gaia_photometry = GaiaPhotometry()
+        self.use_gaia_spectroscopy = True
     
     def query_gaia_region(self, ra_deg, dec_deg, radius_arcmin, limiting_magnitude=16.0):
         """
@@ -163,11 +169,91 @@ class CatalogQuery:
             print(f"Error querying GAIA catalog: {str(e)}")
             return None
     
-    def convert_gaia_to_johnson_cousins(self, gaia_table=None):
+    def convert_gaia_to_johnson_cousins_spectroscopic(self, gaia_table=None):
         """
-        Convert GAIA photometry to Johnson V, B and Cousins R, I magnitudes.
+        Convert GAIA photometry to Johnson-Kron-Cousins magnitudes using high-resolution spectra.
         
-        Uses empirical transformations from literature.
+        Uses gaiaxpy to generate synthetic photometry from BP/RP spectra.
+        Falls back to polynomial method if spectroscopic data is unavailable.
+        
+        Args:
+            gaia_table (astropy.table.Table): GAIA catalog results
+        
+        Returns:
+            dict: Dictionary with V, B, R, I magnitude arrays
+        """
+        if gaia_table is None:
+            gaia_table = self.gaia_table
+        
+        if gaia_table is None:
+            print("Error: No GAIA catalog data available")
+            return None
+        
+        try:
+            # Extract source IDs for spectroscopic processing
+            source_ids = gaia_table['source_id'].tolist()
+            
+            # Attempt GAIA spectroscopic conversion
+            magnitudes_dict, errors_dict = self.gaia_photometry.process_source_list(source_ids)
+            
+            if magnitudes_dict:
+                # Convert to arrays for consistency with original interface
+                V_list, B_list, R_list, I_list = [], [], [], []
+                ra_list, dec_list, source_id_list = [], [], []
+                
+                for i, source_id in enumerate(source_ids):
+                    if source_id in magnitudes_dict:
+                        mags = magnitudes_dict[source_id]
+                        
+                        # Only include sources with valid V, B, R, I magnitudes
+                        if all(np.isfinite(mags[band]) for band in ['V', 'B', 'R', 'I']):
+                            V_list.append(mags['V'])
+                            B_list.append(mags['B'])
+                            R_list.append(mags['R'])
+                            I_list.append(mags['I'])
+                            ra_list.append(gaia_table['ra'][i])
+                            dec_list.append(gaia_table['dec'][i])
+                            source_id_list.append(source_id)
+                
+                if V_list:
+                    V = np.array(V_list)
+                    B = np.array(B_list)
+                    R = np.array(R_list)
+                    I = np.array(I_list)
+                    
+                    self.converted_magnitudes = {
+                        'V': V,
+                        'B': B,
+                        'R': R,
+                        'I': I,
+                        'ra': np.array(ra_list),
+                        'dec': np.array(dec_list),
+                        'source_id': np.array(source_id_list),
+                        'method': 'spectroscopic'
+                    }
+                    
+                    print(f"Spectroscopic conversion successful for {len(V)} sources")
+                    print(f"V magnitude range: {np.min(V):.2f} to {np.max(V):.2f}")
+                    print(f"B magnitude range: {np.min(B):.2f} to {np.max(B):.2f}")
+                    print(f"R magnitude range: {np.min(R):.2f} to {np.max(R):.2f}")
+                    print(f"I magnitude range: {np.min(I):.2f} to {np.max(I):.2f}")
+                    
+                    return self.converted_magnitudes
+            
+            # Fallback to polynomial method if spectroscopic conversion fails
+            print("Falling back to polynomial magnitude conversion")
+            return self.convert_gaia_to_johnson_cousins_polynomial(gaia_table)
+            
+        except Exception as e:
+            print(f"Error in spectroscopic conversion: {str(e)}")
+            print("Falling back to polynomial magnitude conversion")
+            return self.convert_gaia_to_johnson_cousins_polynomial(gaia_table)
+    
+    def convert_gaia_to_johnson_cousins_polynomial(self, gaia_table=None):
+        """
+        Convert GAIA photometry to Johnson V, B and Cousins R, I magnitudes using polynomial transforms.
+        
+        Uses empirical polynomial transformations (fallback method).
         
         Args:
             gaia_table (astropy.table.Table): GAIA catalog results
@@ -192,8 +278,8 @@ class CatalogQuery:
             bp_rp = bp_mag - rp_mag
             g_rp = g_mag - rp_mag
             
-            # Transformation equations (simplified empirical relations)
-            # These are approximate transformations - more sophisticated ones exist
+            # Transformation equations (polynomial approximations)
+            # These are approximate transformations - spectroscopic method is more accurate
             
             # Johnson V magnitude
             V = g_mag - 0.01760 - 0.006860 * bp_rp - 0.1732 * bp_rp**2
@@ -218,10 +304,11 @@ class CatalogQuery:
                 'ra': np.array(gaia_table['ra'])[valid_mask],
                 'dec': np.array(gaia_table['dec'])[valid_mask],
                 'source_id': np.array(gaia_table['source_id'])[valid_mask],
-                'valid_mask': valid_mask
+                'valid_mask': valid_mask,
+                'method': 'polynomial'
             }
             
-            print(f"Converted magnitudes for {len(V[valid_mask])} sources")
+            print(f"Polynomial conversion for {len(V[valid_mask])} sources")
             print(f"V magnitude range: {np.min(V[valid_mask]):.2f} to {np.max(V[valid_mask]):.2f}")
             print(f"B magnitude range: {np.min(B[valid_mask]):.2f} to {np.max(B[valid_mask]):.2f}")
             print(f"R magnitude range: {np.min(R[valid_mask]):.2f} to {np.max(R[valid_mask]):.2f}")
@@ -232,6 +319,25 @@ class CatalogQuery:
         except Exception as e:
             print(f"Error converting magnitudes: {str(e)}")
             return None
+    
+    def convert_gaia_to_johnson_cousins(self, gaia_table=None):
+        """
+        Convert GAIA photometry to Johnson V, B and Cousins R, I magnitudes.
+        
+        Automatically selects the best available method:
+        1. Spectroscopic conversion using gaiaxpy (preferred)
+        2. Polynomial conversion (fallback)
+        
+        Args:
+            gaia_table (astropy.table.Table): GAIA catalog results
+        
+        Returns:
+            dict: Dictionary with V, B, R, I magnitude arrays
+        """
+        if self.use_gaia_spectroscopy:
+            return self.convert_gaia_to_johnson_cousins_spectroscopic(gaia_table)
+        else:
+            return self.convert_gaia_to_johnson_cousins_polynomial(gaia_table)
     
     def calculate_field_of_view(self, focal_length_mm, pixel_size_microns, width_pixels, height_pixels):
         """
