@@ -47,10 +47,16 @@ Index(['source_id', 'JkcStd_mag_U', 'JkcStd_mag_B', 'JkcStd_mag_V',
 ```
 
 From this object, we are interested in:
-'JkcStd_mag_U'
-'JkcStd_mag_B'
-'JkcStd_mag_V'
-'JkcStd_mag_R'
-'JkcStd_mag_I'
+- 'JkcStd_mag_U'
+- 'JkcStd_mag_B'
+- 'JkcStd_mag_V'
+- 'JkcStd_mag_R'
+- 'JkcStd_mag_I'
 
 The magnitude errors can also be calculated from the flux and flux error for each color.
+```python
+flux_V = r['Jkc_Std_flux_V'][0]
+flux_error_V = r['Jkc_Std_flux_error_V'][0]
+SNR_V = flux_V / flux_error_V
+mag_error_V = 2.5 / np.log(10) / SNR_V
+```
