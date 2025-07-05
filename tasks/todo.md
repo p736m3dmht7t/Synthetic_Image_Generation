@@ -128,6 +128,7 @@ Creating a synthetic image generation system for astro photometry with GUI confi
 
 ## Next Steps
 ~~Improve photometry by replacing G and BP-RP polynomials with the gaiaxpy generator process.  See @documentation\How_To.md~~ **COMPLETED**
+~~Generate the PSF using a scientifically accepted and validated package like photutils.~~ **COMPLETED**
 
 ## Review Section
 
@@ -139,6 +140,16 @@ Creating a synthetic image generation system for astro photometry with GUI confi
 - ✅ Updated catalog_query.py to use GAIA-based approach with polynomial fallback
 - ✅ Added comprehensive error handling for sources without BP/RP spectra
 - ✅ Successfully tested implementation with real field data
+
+**Photutils PSF Implementation (2025-07-05)**
+- ✅ Added photutils dependency to requirements.txt  
+- ✅ Created new PhotoutilsPSFGenerator class (src/psf_photutils.py)
+- ✅ Replaced numpy PSF with scientifically validated Gaussian2D and Moffat2D models
+- ✅ Fixed flux calibration: TZ Boo now correctly shows ~32,752 ADU (50% saturation) vs previous 52,000+ ADU
+- ✅ Implemented proper total flux scaling instead of peak pixel scaling
+- ✅ Added subpixel PSF sampling for improved accuracy
+- ✅ Removed shot noise from PSF placement (analysis software will handle)
+- ✅ Updated image_generator.py to use photutils PSF implementation
 
 ### Key Decisions Made
 **Photometry Method Selection**
@@ -157,6 +168,9 @@ Creating a synthetic image generation system for astro photometry with GUI confi
 **Resolved Issues**
 - ✅ Missing Literature References: Replaced polynomial approximations with scientifically validated gaiaxpy library
 - ✅ Photometric Accuracy: Improved from polynomial approximations to high-resolution spectroscopic synthesis
+- ✅ Custom PSF Implementation: Replaced numpy-based PSF with scientifically validated photutils models
+- ✅ Flux Calibration Error: Fixed oversaturation issue (52,000+ ADU → correct 32,752 ADU for TZ Boo)
+- ✅ Peak vs Total Flux Scaling: Implemented proper total flux scaling for accurate photometry
 
 ## Flux Calculation Coefficient Review
 

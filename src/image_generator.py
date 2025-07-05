@@ -13,7 +13,10 @@ import json
 from catalog_query import CatalogQuery
 from coordinates import CoordinateTransform
 from optics import TelescopeOptics
-from psf import PSFGenerator
+try:
+    from psf_photutils import PhotoutilsPSFGenerator
+except ImportError:
+    from .psf_photutils import PhotoutilsPSFGenerator
 
 
 class ImageGenerator:
@@ -30,7 +33,7 @@ class ImageGenerator:
         self.catalog_query = CatalogQuery()
         self.coordinate_transform = CoordinateTransform()
         self.telescope_optics = TelescopeOptics()
-        self.psf_generator = PSFGenerator()
+        self.psf_generator = PhotoutilsPSFGenerator()
         
         # Generation parameters
         self.target_config = None
@@ -324,6 +327,167 @@ class ImageGenerator:
         except Exception as e:
             print(f"Error creating generation summary: {str(e)}")
             return None
+    
+    def generate_catalog_documentation(self, fits_filename):
+        """
+        Generate a human-readable catalog file documenting sources in the image.
+        
+        Args:
+            fits_filename (str): Name of corresponding FITS file (used to derive base name)
+            
+        Returns:
+            str: Path to generated catalog file
+        """
+        try:
+            # Create catalog filename by removing band suffix and adding .catalog
+            # Example: "V*_TZ_Boo_20250105_120000_V.fits" -> "V*_TZ_Boo_20250105_120000.catalog"
+            from pathlib import Path
+            output_dir = Path("output")
+            output_dir.mkdir(exist_ok=True)
+            
+            # Remove the band suffix (last _X before .fits) to create a unified catalog name
+            base_name = fits_filename.replace('.fits', '')
+            if base_name.endswith('_V') or base_name.endswith('_B') or base_name.endswith('_R') or base_name.endswith('_I') or base_name.endswith('_U'):
+                base_name = base_name[:-2]  # Remove last 2 characters (_X)
+            
+            catalog_filename = str(output_dir / f"{base_name}.catalog")
+            
+            # Get source data
+            if not self.source_data:
+                print(f"Warning: No source data available for catalog documentation")
+                return None
+            
+            # Prepare data arrays
+            source_ids = self.source_data.get('source_id', [])
+            ras = self.source_data.get('ra', [])
+            decs = self.source_data.get('dec', [])
+            
+            # Get method indicators for all bands
+            spectroscopic_bands = self.source_data.get('spectroscopic_bands', {})
+            
+            if len(source_ids) == 0:
+                print(f"Warning: No sources to document")
+                return None
+            
+            print(f"Generating catalog documentation: {catalog_filename}")
+            
+            with open(catalog_filename, 'w') as f:
+                # Write header
+                f.write(f"# Source Catalog for {base_name}\n")
+                f.write(f"# Bands: U, B, V, R, I (Johnson-Cousins)\n")
+                f.write(f"# Target: {self.target_config.get('target_name', 'Unknown')}\n")
+                f.write(f"# Generated: {self.get_timestamp()}\n")
+                f.write(f"# Total Sources: {len(source_ids)}\n")
+                f.write("#\n")
+                f.write("# Magnitudes marked with '*' were derived using polynomial method\n")
+                f.write("# Magnitudes without '*' were derived using GAIA spectroscopic method\n")
+                f.write("#\n")
+                f.write("# Column Headers:\n")
+                f.write("#   Source_ID: GAIA DR3 source identifier\n")
+                f.write("#   RA: Right Ascension (HH:MM:SS.SSS)\n")
+                f.write("#   Dec: Declination (+DD:MM:SS.SS)\n")
+                f.write("#   U,B,V,R,I: Johnson-Cousins magnitudes and errors\n")
+                f.write("#\n")
+                
+                # Write column headers with proper spacing
+                f.write("Source_ID                    RA              Dec               ")
+                f.write("U                    B                    V                    ")
+                f.write("R                    I\n")
+                f.write("-" * 162 + "\n")
+                
+                # Process each source
+                for i in range(len(source_ids)):
+                    # Format source ID as string with "GAIA " prefix
+                    source_id_str = f'"GAIA {source_ids[i]}"'
+                    
+                    # Convert coordinates to sexagesimal
+                    ra_str, dec_str = self.format_coordinates(ras[i], decs[i])
+                    
+                    # Get all band magnitudes and errors for this source
+                    all_bands = ['U', 'B', 'V', 'R', 'I']
+                    mag_strings = []
+                    
+                    for band_name in all_bands:
+                        band_mag_list = self.source_data.get(band_name, [])
+                        band_err_list = self.source_data.get(f'{band_name}_error', [])
+                        
+                        if i < len(band_mag_list) and band_mag_list[i] is not None:
+                            mag = band_mag_list[i]
+                            err = band_err_list[i] if i < len(band_err_list) and band_err_list[i] is not None else 0.999
+                            
+                            # Check if this magnitude was derived spectroscopically
+                            is_spectroscopic = (i in spectroscopic_bands and 
+                                              band_name in spectroscopic_bands[i])
+                            
+                            # Add asterisk for polynomial method (always use 1 character for alignment)
+                            asterisk = "*" if not is_spectroscopic else " "
+                            
+                            # Format magnitude with proper alignment
+                            if np.isfinite(mag) and mag < 90:
+                                mag_str = f"{mag:6.3f}{asterisk} +/- {err:5.3f}"
+                            else:
+                                mag_str = "     --  +/-    --"
+                        else:
+                            mag_str = "     --  +/-    --"
+                        
+                        mag_strings.append(mag_str)
+                    
+                    # Write formatted line
+                    line = (f"{source_id_str:<25} {ra_str:<15} {dec_str:<17} "
+                           f"{mag_strings[0]:<20} {mag_strings[1]:<20} {mag_strings[2]:<20} "
+                           f"{mag_strings[3]:<20} {mag_strings[4]:<20}\n")
+                    f.write(line)
+                
+                # Write footer
+                f.write("-" * 162 + "\n")
+                f.write(f"# End of catalog ({len(source_ids)} sources)\n")
+            
+            print(f"Catalog documentation saved: {catalog_filename}")
+            return catalog_filename
+            
+        except Exception as e:
+            print(f"Error generating catalog documentation: {e}")
+            return None
+    
+    def format_coordinates(self, ra_deg, dec_deg):
+        """
+        Format coordinates to sexagesimal strings.
+        
+        Args:
+            ra_deg (float): RA in decimal degrees
+            dec_deg (float): Dec in decimal degrees
+            
+        Returns:
+            tuple: (ra_str, dec_str) in HH:MM:SS.SSS, +DD:MM:SS.SS format
+        """
+        try:
+            # Convert RA from degrees to hours
+            ra_hours = ra_deg / 15.0
+            
+            # RA formatting
+            ra_h = int(ra_hours)
+            ra_m = int((ra_hours - ra_h) * 60)
+            ra_s = ((ra_hours - ra_h) * 60 - ra_m) * 60
+            ra_str = f"{ra_h:02d}:{ra_m:02d}:{ra_s:06.3f}"
+            
+            # Dec formatting
+            dec_sign = "+" if dec_deg >= 0 else "-"
+            dec_abs = abs(dec_deg)
+            dec_d = int(dec_abs)
+            dec_m = int((dec_abs - dec_d) * 60)
+            dec_s = ((dec_abs - dec_d) * 60 - dec_m) * 60
+            dec_str = f"{dec_sign}{dec_d:02d}:{dec_m:02d}:{dec_s:05.2f}"
+            
+            return ra_str, dec_str
+            
+        except Exception as e:
+            print(f"Error formatting coordinates: {e}")
+            return "00:00:00.000", "+00:00:00.00"
+    
+    def get_timestamp(self):
+        """Get current timestamp string."""
+        from datetime import datetime
+        return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     
     def generate_images(self):
         """

@@ -266,9 +266,9 @@ class FITSWriter:
             return False
     
     def write_band_images(self, images, target_config, telescope_config, 
-                         camera_config, psf_params=None):
+                         camera_config, psf_params=None, source_data=None, image_generator=None):
         """
-        Write all band images to FITS files.
+        Write all band images to FITS files and generate catalog documentation.
         
         Args:
             images (dict): Dictionary of band -> image data
@@ -276,6 +276,8 @@ class FITSWriter:
             telescope_config (dict): Telescope configuration
             camera_config (dict): Camera configuration
             psf_params (dict): PSF parameters (optional)
+            source_data (dict): Source catalog data (optional)
+            image_generator: ImageGenerator instance for catalog generation (optional)
         
         Returns:
             dict: Dictionary of band -> output filename
@@ -290,6 +292,7 @@ class FITSWriter:
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
             
             output_files = {}
+            catalog_generated = False  # Track if catalog has been generated
             
             for band, image_data in images.items():
                 # Create filename
@@ -304,6 +307,16 @@ class FITSWriter:
                 # Write FITS file
                 if self.write_fits_file(image_data, filename, updated_header):
                     output_files[band] = filename
+                    
+                    # Generate catalog documentation once per image set (not per band)
+                    if not catalog_generated and source_data is not None and image_generator is not None:
+                        try:
+                            catalog_path = image_generator.generate_catalog_documentation(filename)
+                            if catalog_path:
+                                print(f"  Generated unified catalog: {catalog_path}")
+                                catalog_generated = True
+                        except Exception as e:
+                            print(f"  Warning: Could not generate catalog: {e}")
                 else:
                     print(f"Failed to write {band} band FITS file")
             

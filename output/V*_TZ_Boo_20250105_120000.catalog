@@ -1,0 +1,22 @@
+# Source Catalog for V*_TZ_Boo_20250105_120000
+# Bands: U, B, V, R, I (Johnson-Cousins)
+# Target: V* TZ Boo
+# Generated: 2025-07-05 16:30:05
+# Total Sources: 3
+#
+# Magnitudes marked with '*' were derived using polynomial method
+# Magnitudes without '*' were derived using GAIA spectroscopic method
+#
+# Column Headers:
+#   Source_ID: GAIA DR3 source identifier
+#   RA: Right Ascension (HH:MM:SS.SSS)
+#   Dec: Declination (+DD:MM:SS.SS)
+#   U,B,V,R,I: Johnson-Cousins magnitudes and errors
+#
+Source_ID                    RA              Dec               U                    B                    V                    R                    I
+------------------------------------------------------------------------------------------------------------------------------------------------------------------
+"GAIA 1391924687894823296" 15:08:09.135    +39:58:12.86      11.345  +/- 0.025    11.282  +/- 0.007    10.649  +/- 0.009    10.332  +/- 0.010     9.929  +/- 0.003   
+"GAIA 1296666402078585984" 15:08:10.080    +39:58:19.20      11.153* +/- 0.010    11.126  +/- 0.002    10.581  +/- 0.002    10.254  +/- 0.001     9.943  +/- 0.000   
+"GAIA 1391687949297517824" 15:08:11.040    +39:58:26.40      11.930* +/- 0.008    11.475* +/- 0.002    10.686* +/- 0.001    10.256* +/- 0.001     9.878* +/- 0.000   
+------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# End of catalog (3 sources)

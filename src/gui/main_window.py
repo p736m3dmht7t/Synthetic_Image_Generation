@@ -992,7 +992,9 @@ class MainWindow:
                     generator.target_config,
                     generator.telescope_config,
                     generator.camera_config,
-                    generator.psf_params
+                    generator.psf_params,
+                    generator.source_data,
+                    generator
                 )
                 
                 if output_files:

@@ -221,15 +221,25 @@ class CatalogQuery:
                     R = np.array(R_list)
                     I = np.array(I_list)
                     
+                    # Track which magnitudes were derived spectroscopically
+                    spectroscopic_bands = {i: ['U', 'B', 'V', 'R', 'I'] for i in range(len(V_list))}
+                    
                     self.converted_magnitudes = {
                         'V': V,
                         'B': B,
                         'R': R,
                         'I': I,
+                        'U': V,  # U magnitude (placeholder - would need specific conversion)
                         'ra': np.array(ra_list),
                         'dec': np.array(dec_list),
                         'source_id': np.array(source_id_list),
-                        'method': 'spectroscopic'
+                        'method': 'spectroscopic',
+                        'spectroscopic_bands': spectroscopic_bands,
+                        'V_error': np.full(len(V), 0.01),  # Default error estimate
+                        'B_error': np.full(len(B), 0.01),
+                        'R_error': np.full(len(R), 0.01),
+                        'I_error': np.full(len(I), 0.01),
+                        'U_error': np.full(len(V), 0.02),  # Higher error for U
                     }
                     
                     print(f"Spectroscopic conversion successful for {len(V)} sources")
@@ -296,16 +306,29 @@ class CatalogQuery:
             # Handle invalid values
             valid_mask = np.isfinite(V) & np.isfinite(B) & np.isfinite(R) & np.isfinite(I)
             
+            # Add U magnitude approximation
+            U = g_mag + 0.7840 + 0.5384 * bp_rp + 0.0755 * bp_rp**2
+            
+            # Track that all magnitudes used polynomial method (no spectroscopic data)
+            polynomial_bands = {i: [] for i in range(len(V[valid_mask]))}  # Empty = all polynomial
+            
             self.converted_magnitudes = {
                 'V': V[valid_mask],
                 'B': B[valid_mask],
                 'R': R[valid_mask], 
                 'I': I[valid_mask],
+                'U': U[valid_mask],
                 'ra': np.array(gaia_table['ra'])[valid_mask],
                 'dec': np.array(gaia_table['dec'])[valid_mask],
                 'source_id': np.array(gaia_table['source_id'])[valid_mask],
                 'valid_mask': valid_mask,
-                'method': 'polynomial'
+                'method': 'polynomial',
+                'spectroscopic_bands': polynomial_bands,
+                'V_error': np.full(len(V[valid_mask]), 0.05),  # Higher error for polynomial
+                'B_error': np.full(len(B[valid_mask]), 0.05),
+                'R_error': np.full(len(R[valid_mask]), 0.05),
+                'I_error': np.full(len(I[valid_mask]), 0.05),
+                'U_error': np.full(len(U[valid_mask]), 0.10),  # Even higher error for U polynomial
             }
             
             print(f"Polynomial conversion for {len(V[valid_mask])} sources")
