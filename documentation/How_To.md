@@ -1,8 +1,8 @@
-*How To Generate Synthetic Photometry In Johnson Kron Cousins Standard Colors from GAIA High Resolution Spectra
+#How To Generate Synthetic Photometry In Johnson Kron Cousins Standard Colors from GAIA High Resolution Spectra
 
-This method requires several packages
+##This method requires several packages
 python```
-# Step 0: The required packages
+##Step 0: The required packages
 from astroquery.gaia import Gaia
 import astropy.units as u
 from astropy.coordinates import SkyCoord
