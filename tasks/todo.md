@@ -127,7 +127,7 @@ Creating a synthetic image generation system for astro photometry with GUI confi
 - User can modify headers as needed for each observation campaign
 
 ## Next Steps
-Ready to begin Phase 1: Project Foundation
+Improve photometry by replacing G and BP-RP polynomials with the gaiaxpy generator process.  See @documentation\How_To.md 
 
 ## Review Section
 *To be filled in as tasks are completed*
