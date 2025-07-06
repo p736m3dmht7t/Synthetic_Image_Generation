@@ -129,6 +129,11 @@ Creating a synthetic image generation system for astro photometry with GUI confi
 ## Next Steps
 ~~Improve photometry by replacing G and BP-RP polynomials with the gaiaxpy generator process.  See @documentation\How_To.md~~ **COMPLETED**
 ~~Generate the PSF using a scientifically accepted and validated package like photutils.~~ **COMPLETED**
+- Find target star.  If target star is not found--stop!  Something has gone wrong.
+- Place the target star on a small test grid using sub-pixel alignment.  Find the np.max(test grid).
+- Find factor = desired peak / actual peak.
+- Use the factor for every star including the target star on the full image grid.
+- Remove DEBUG print() statements cluttering the output.
 
 ## Review Section
 

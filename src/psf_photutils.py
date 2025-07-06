@@ -133,8 +133,8 @@ class PhotoutilsPSFGenerator:
         # Calculate target peak ADU level (50% of saturation by default)
         target_peak_adu = saturation_limit * target_fraction
         
-        print(f"Target star: {target_magnitude:.2f} mag -> {target_peak_adu:.0f} ADU peak "
-              f"({target_fraction*100:.0f}% of saturation)")
+        print(f"Target star: {target_magnitude:.3f} mag -> {target_peak_adu:.0f} ADU peak "
+              f"({target_fraction*100:.1f}% of saturation)")
         
         return target_peak_adu
     
@@ -284,7 +284,7 @@ class PhotoutilsPSFGenerator:
             print(f"Error calculating peak correction factor: {e}")
             return 1.0  # Return unity factor as fallback
     
-    def identify_target_source(self, source_data, target_name="V* TZ Boo", target_coords=None):
+    def identify_target_source(self, source_data, target_name="V* TZ Boo", target_coords=None, target_gaia_source_id=None):
         """
         Identify the target source in the source data catalog.
         
@@ -296,6 +296,8 @@ class PhotoutilsPSFGenerator:
             Target name for identification
         target_coords : tuple, optional
             (ra_deg, dec_deg) coordinates if available
+        target_gaia_source_id : str or int, optional
+            GAIA DR3 source_id for precise target identification
             
         Returns
         -------
@@ -315,8 +317,25 @@ class PhotoutilsPSFGenerator:
             target_source = None
             target_index = None
             
-            # Method 1: Look for target name or identifier in source data
-            if 'source_names' in source_data:
+            # Method 0: Look for GAIA source_id match (most reliable)
+            if target_gaia_source_id is not None and 'source_id' in source_data:
+                source_ids = source_data['source_id']
+                target_id = int(target_gaia_source_id) if isinstance(target_gaia_source_id, str) else target_gaia_source_id
+                
+                for i, source_id in enumerate(source_ids):
+                    if int(source_id) == target_id:
+                        target_index = i
+                        target_source = {
+                            'index': i,
+                            'gaia_source_id': source_id,
+                            'x_pixel': x_coords[i],
+                            'y_pixel': y_coords[i]
+                        }
+                        print(f"Target identified by GAIA source_id: {source_id}")
+                        break
+            
+            # Method 1: Look for target name or identifier in source data (fallback)
+            if target_source is None and 'source_names' in source_data:
                 source_names = source_data['source_names']
                 for i, name in enumerate(source_names):
                     if target_name in name or "TZ Boo" in name:
@@ -327,9 +346,10 @@ class PhotoutilsPSFGenerator:
                             'x_pixel': x_coords[i],
                             'y_pixel': y_coords[i]
                         }
+                        print(f"Target identified by name: {name}")
                         break
             
-            # Method 2: Look for target coordinates match
+            # Method 2: Look for target coordinates match (fallback)
             if target_source is None and target_coords is not None:
                 target_ra, target_dec = target_coords
                 if 'ra' in source_data and 'dec' in source_data:
@@ -353,11 +373,19 @@ class PhotoutilsPSFGenerator:
                                 'x_pixel': x_coords[i],
                                 'y_pixel': y_coords[i]
                             }
+                        if target_source is not None:
+                            print(f"Target identified by coordinates: separation={min_separation:.2f} arcsec")
             
-            # Method 3: Assume brightest source is target (fallback)
+            # Method 3: STOP if target not found - do not use brightest source
             if target_source is None:
-                print("Warning: Target not identified by name or coordinates")
-                print("Using brightest V-band source as target")
+                if target_gaia_source_id is not None:
+                    print(f"ERROR: Target not found by GAIA source_id {target_gaia_source_id}")
+                    print("Target tracking failed - cannot proceed with image generation")
+                    print("Check that target.json contains correct GAIA source_id")
+                    return None
+                else:
+                    print("Warning: Target not identified by name or coordinates")
+                    print("Using brightest V-band source as target")
                 
                 v_mags = source_data.get('V', [])
                 if len(v_mags) > 0:
@@ -534,7 +562,8 @@ class PhotoutilsPSFGenerator:
     
     def create_stellar_field(self, source_data, image_shape, psf_params,
                            target_magnitude, saturation_limit, band='V',
-                           psf_type='gaussian', target_name="V* TZ Boo", target_coords=None):
+                           psf_type='gaussian', target_name="V* TZ Boo", target_coords=None,
+                           target_gaia_source_id=None):
         """
         Create a synthetic stellar field using two-pass approach for exact peak flux control.
         
@@ -587,7 +616,8 @@ class PhotoutilsPSFGenerator:
             
             # Identify target source in catalog
             target_source = self.identify_target_source(
-                source_data, target_name=target_name, target_coords=target_coords
+                source_data, target_name=target_name, target_coords=target_coords,
+                target_gaia_source_id=target_gaia_source_id
             )
             
             if target_source is None:

@@ -19,9 +19,13 @@ from astropy import units as u
 from astroquery.gaia import Gaia
 from gaiaxpy import generate, PhotometricSystem
 import warnings
+import logging
 
 # Suppress warnings for cleaner output
 warnings.filterwarnings('ignore', category=UserWarning)
+
+# Suppress INFO messages from astroquery
+logging.getLogger('astroquery').setLevel(logging.WARNING)
 
 
 class AstroImageJProcessor:
@@ -162,13 +166,18 @@ class AstroImageJProcessor:
             )
             
             if result and len(result) > 0:
-                # Return the nearest source
-                source = result[0]
+                # Find the source with the minimum distance
+                min_dist_idx = 0
+                if 'dist' in result.colnames and len(result) > 1:
+                    min_dist_idx = result['dist'].argmin()
+                
+                source = result[min_dist_idx]
                 return {
                     'source_id': int(source['source_id']),
                     'ra': float(source['ra']),
                     'dec': float(source['dec']),
-                    'g_mag': float(source['phot_g_mean_mag']) if source['phot_g_mean_mag'] else None
+                    'g_mag': float(source['phot_g_mean_mag']) if source['phot_g_mean_mag'] else None,
+                    'dist': float(source['dist']) if 'dist' in source else None
                 }
             
         except Exception as e:
@@ -374,9 +383,18 @@ class AstroImageJProcessor:
                 sources[i]['ra_found_str'] = ra_found_str
                 sources[i]['dec_found_str'] = dec_found_str
                 
-                # Print coordinate comparison
+                # Print coordinate comparison with distance
+                if gaia_source['dist'] is not None:
+                    distance_str = f" (distance: {gaia_source['dist']:5.2f}\")"
+                else:
+                    # Calculate distance if not provided by GAIA query
+                    orig_coord = SkyCoord(ra=source['ra_deg'] * u.deg, dec=source['dec_deg'] * u.deg)
+                    gaia_coord = SkyCoord(ra=gaia_source['ra'] * u.deg, dec=gaia_source['dec'] * u.deg)
+                    distance = orig_coord.separation(gaia_coord).to(u.arcsec)
+                    distance_str = f" (distance: {distance.value:5.2f}\")"
+                
                 print(f"Coordinates {source['ra_orig_str']} {source['dec_orig_str']} -> "
-                      f"{ra_found_str} {dec_found_str}")
+                      f"{ra_found_str} {dec_found_str}{distance_str}")
             else:
                 print(f"No GAIA match for {source['ra_orig_str']} {source['dec_orig_str']}")
         

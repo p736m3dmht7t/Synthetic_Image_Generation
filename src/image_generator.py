@@ -229,11 +229,19 @@ class ImageGenerator:
             height_pixels = sensor_dims.get('height_pixels', 0)
             image_shape = (height_pixels, width_pixels)
             
-            # Get target magnitude for this band
-            target_magnitude = self.target_config.get('magnitudes', {}).get(band)
+            # Get target magnitude for this band - prefer GAIA over Simbad
+            gaia_magnitudes = self.target_config.get('gaia_data', {}).get('magnitudes', {})
+            simbad_magnitudes = self.target_config.get('magnitudes', {})
+            
+            # Use GAIA magnitude if available, otherwise fall back to Simbad
+            target_magnitude = gaia_magnitudes.get(band) or simbad_magnitudes.get(band)
+            
             if target_magnitude is None or target_magnitude == 0:
-                print(f"Skipping {band} band: No target magnitude specified")
+                print(f"Skipping {band} band: No target magnitude specified in GAIA or Simbad data")
                 return None
+            
+            magnitude_source = "GAIA DR3" if gaia_magnitudes.get(band) else "Simbad"
+            print(f"Using {magnitude_source} magnitude for {band} band: {target_magnitude:.3f}")
             
             # Get saturation limit
             saturation_limit = self.camera_config.get('saturation_limit', 65535)
@@ -242,10 +250,14 @@ class ImageGenerator:
             print(f"Target magnitude: {target_magnitude:.2f}")
             print(f"Image size: {width_pixels} × {height_pixels} pixels")
             
+            # Extract GAIA source_id from target configuration
+            target_gaia_source_id = self.target_config.get('gaia_data', {}).get('source_id')
+            
             # Create stellar field
             image = self.psf_generator.create_stellar_field(
                 self.source_data, image_shape, self.psf_params,
-                target_magnitude, saturation_limit, band
+                target_magnitude, saturation_limit, band,
+                target_gaia_source_id=target_gaia_source_id
             )
             
             if image is None:

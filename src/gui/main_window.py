@@ -133,31 +133,58 @@ class MainWindow:
         dec_str_entry.bind('<Return>', self.on_hexagesimal_enter)
         
         # Magnitudes section
-        ttk.Label(frame, text="Magnitudes", font=("Arial", 10, "bold")).grid(row=6, column=0, columnspan=2, sticky="w", padx=5, pady=(15,5))
+        ttk.Label(frame, text="Magnitudes", font=("Arial", 10, "bold")).grid(row=6, column=0, columnspan=4, sticky="w", padx=5, pady=(15,5))
         
-        ttk.Label(frame, text="B magnitude:").grid(row=7, column=0, sticky="w", padx=5, pady=5)
+        # Column headers
+        ttk.Label(frame, text="Band", font=("Arial", 9, "bold")).grid(row=7, column=0, sticky="w", padx=5, pady=2)
+        ttk.Label(frame, text="Simbad", font=("Arial", 9, "bold")).grid(row=7, column=1, sticky="w", padx=5, pady=2)
+        ttk.Label(frame, text="GAIA DR3", font=("Arial", 9, "bold")).grid(row=7, column=2, sticky="w", padx=5, pady=2)
+        ttk.Label(frame, text="Source ID", font=("Arial", 9, "bold")).grid(row=7, column=3, sticky="w", padx=5, pady=2)
+        
+        # B magnitude row
+        ttk.Label(frame, text="B magnitude:").grid(row=8, column=0, sticky="w", padx=5, pady=5)
         self.target_mag_b = tk.StringVar()
-        ttk.Entry(frame, textvariable=self.target_mag_b, width=10).grid(row=7, column=1, sticky="w", padx=5, pady=5)
+        ttk.Entry(frame, textvariable=self.target_mag_b, width=10).grid(row=8, column=1, sticky="w", padx=5, pady=5)
+        self.target_gaia_mag_b = tk.StringVar()
+        gaia_b_entry = ttk.Entry(frame, textvariable=self.target_gaia_mag_b, width=10, state="readonly")
+        gaia_b_entry.grid(row=8, column=2, sticky="w", padx=5, pady=5)
         
-        ttk.Label(frame, text="V magnitude:").grid(row=8, column=0, sticky="w", padx=5, pady=5)
+        # V magnitude row
+        ttk.Label(frame, text="V magnitude:").grid(row=9, column=0, sticky="w", padx=5, pady=5)
         self.target_mag_v = tk.StringVar()
-        ttk.Entry(frame, textvariable=self.target_mag_v, width=10).grid(row=8, column=1, sticky="w", padx=5, pady=5)
+        ttk.Entry(frame, textvariable=self.target_mag_v, width=10).grid(row=9, column=1, sticky="w", padx=5, pady=5)
+        self.target_gaia_mag_v = tk.StringVar()
+        gaia_v_entry = ttk.Entry(frame, textvariable=self.target_gaia_mag_v, width=10, state="readonly")
+        gaia_v_entry.grid(row=9, column=2, sticky="w", padx=5, pady=5)
         
-        ttk.Label(frame, text="R magnitude:").grid(row=9, column=0, sticky="w", padx=5, pady=5)
+        # R magnitude row
+        ttk.Label(frame, text="R magnitude:").grid(row=10, column=0, sticky="w", padx=5, pady=5)
         self.target_mag_r = tk.StringVar()
-        ttk.Entry(frame, textvariable=self.target_mag_r, width=10).grid(row=9, column=1, sticky="w", padx=5, pady=5)
+        ttk.Entry(frame, textvariable=self.target_mag_r, width=10).grid(row=10, column=1, sticky="w", padx=5, pady=5)
+        self.target_gaia_mag_r = tk.StringVar()
+        gaia_r_entry = ttk.Entry(frame, textvariable=self.target_gaia_mag_r, width=10, state="readonly")
+        gaia_r_entry.grid(row=10, column=2, sticky="w", padx=5, pady=5)
         
-        ttk.Label(frame, text="I magnitude:").grid(row=10, column=0, sticky="w", padx=5, pady=5)
+        # I magnitude row
+        ttk.Label(frame, text="I magnitude:").grid(row=11, column=0, sticky="w", padx=5, pady=5)
         self.target_mag_i = tk.StringVar()
-        ttk.Entry(frame, textvariable=self.target_mag_i, width=10).grid(row=10, column=1, sticky="w", padx=5, pady=5)
+        ttk.Entry(frame, textvariable=self.target_mag_i, width=10).grid(row=11, column=1, sticky="w", padx=5, pady=5)
+        self.target_gaia_mag_i = tk.StringVar()
+        gaia_i_entry = ttk.Entry(frame, textvariable=self.target_gaia_mag_i, width=10, state="readonly")
+        gaia_i_entry.grid(row=11, column=2, sticky="w", padx=5, pady=5)
+        
+        # GAIA source ID (spans all magnitude rows)
+        self.target_gaia_source_id = tk.StringVar()
+        gaia_id_entry = ttk.Entry(frame, textvariable=self.target_gaia_source_id, width=15, state="readonly")
+        gaia_id_entry.grid(row=8, column=3, rowspan=4, sticky="new", padx=5, pady=5)
         
         # Notes
-        ttk.Label(frame, text="Notes:").grid(row=11, column=0, sticky="nw", padx=5, pady=5)
+        ttk.Label(frame, text="Notes:").grid(row=12, column=0, sticky="nw", padx=5, pady=5)
         self.target_notes = tk.Text(frame, height=3, width=40)
-        self.target_notes.grid(row=11, column=1, padx=5, pady=5)
+        self.target_notes.grid(row=12, column=1, columnspan=2, padx=5, pady=5)
         
         # Save button
-        ttk.Button(frame, text="Save Target Config", command=self.save_target_config).grid(row=12, column=0, columnspan=2, pady=10)
+        ttk.Button(frame, text="Save Target Config", command=self.save_target_config).grid(row=13, column=0, columnspan=4, pady=10)
     
     def lookup_target(self):
         """Lookup target information from Simbad and populate fields."""
@@ -167,6 +194,7 @@ class MainWindow:
             messagebox.showwarning("Warning", "Please enter a target name first.")
             return
         
+        success = False
         try:
             # Import and create catalog query instance
             from catalog_query import CatalogQuery
@@ -174,7 +202,7 @@ class MainWindow:
             
             # Show progress
             self.root.config(cursor="wait")
-            self.root.update()
+            self.set_button_progress(self.search_target_btn, "Simbad...")
             
             # Lookup target
             target_info = catalog_query.lookup_target(target_name)
@@ -188,7 +216,7 @@ class MainWindow:
                 self.target_ra_str.set(target_info['ra_str'])
                 self.target_dec_str.set(target_info['dec_str'])
                 
-                # Populate magnitude fields (only if values are available) with proper formatting
+                # Populate Simbad magnitude fields (only if values are available) with proper formatting
                 if target_info['magnitudes']['B'] is not None:
                     self.target_mag_b.set(f"{target_info['magnitudes']['B']:.3f}")
                 else:
@@ -209,13 +237,60 @@ class MainWindow:
                 # Update target name to canonical form
                 self.target_name.set(target_info['name'])
                 
-                # Provide visual feedback instead of popup
-                self.set_button_success(self.search_target_btn)
+                # Show GAIA progress phase
+                self.set_button_progress(self.search_target_btn, "GAIA DR3...")
+                
+                # Now lookup GAIA information for the target
+                gaia_info = catalog_query.find_gaia_source_for_target(
+                    target_info['ra_deg'], target_info['dec_deg']
+                )
+                
+                if gaia_info:
+                    # Populate GAIA magnitude fields
+                    if gaia_info['magnitudes']['B'] is not None:
+                        self.target_gaia_mag_b.set(f"{gaia_info['magnitudes']['B']:.3f}")
+                    else:
+                        self.target_gaia_mag_b.set("")
+                    if gaia_info['magnitudes']['V'] is not None:
+                        self.target_gaia_mag_v.set(f"{gaia_info['magnitudes']['V']:.3f}")
+                    else:
+                        self.target_gaia_mag_v.set("")
+                    if gaia_info['magnitudes']['R'] is not None:
+                        self.target_gaia_mag_r.set(f"{gaia_info['magnitudes']['R']:.3f}")
+                    else:
+                        self.target_gaia_mag_r.set("")
+                    if gaia_info['magnitudes']['I'] is not None:
+                        self.target_gaia_mag_i.set(f"{gaia_info['magnitudes']['I']:.3f}")
+                    else:
+                        self.target_gaia_mag_i.set("")
+                    
+                    # Set GAIA source ID
+                    self.target_gaia_source_id.set(str(gaia_info['source_id']))
+                    
+                    # Show success immediately
+                    self.set_button_success(self.search_target_btn)
+                    success = True
+                else:
+                    # Clear GAIA fields if no GAIA source found
+                    self.target_gaia_mag_b.set("")
+                    self.target_gaia_mag_v.set("")
+                    self.target_gaia_mag_r.set("")
+                    self.target_gaia_mag_i.set("")
+                    self.target_gaia_source_id.set("")
+                    print("Warning: No GAIA source found for target")
+                    # Show partial success (Simbad worked, GAIA failed)
+                    self.set_button_failure(self.search_target_btn, "Failed: GAIA")
+                    success = False
+                
             else:
+                self.set_button_failure(self.search_target_btn, "Failed: Simbad")
                 messagebox.showerror("Error", f"Target '{target_name}' not found in Simbad database.")
+                success = False
                 
         except Exception as e:
+            self.set_button_failure(self.search_target_btn, "Failed")
             messagebox.showerror("Error", f"Error looking up target: {str(e)}")
+            success = False
         
         finally:
             # Reset cursor
@@ -261,7 +336,7 @@ class MainWindow:
             
             # Show progress
             self.root.config(cursor="wait")
-            self.root.update()
+            self.set_button_progress(self.search_coord_btn, "Simbad...")
             
             # Lookup target by coordinates
             target_info = catalog_query.lookup_target_by_coordinates(ra_val, dec_val)
@@ -278,7 +353,7 @@ class MainWindow:
                 self.target_ra_str.set(target_info['ra_str'])
                 self.target_dec_str.set(target_info['dec_str'])
                 
-                # Update magnitude fields with proper formatting
+                # Update Simbad magnitude fields with proper formatting
                 if target_info['magnitudes']['B'] is not None:
                     self.target_mag_b.set(f"{target_info['magnitudes']['B']:.3f}")
                 else:
@@ -295,6 +370,41 @@ class MainWindow:
                     self.target_mag_i.set(f"{target_info['magnitudes']['I']:.3f}")
                 else:
                     self.target_mag_i.set("")
+                
+                # Now lookup GAIA information for the target
+                gaia_info = catalog_query.find_gaia_source_for_target(
+                    target_info['ra_deg'], target_info['dec_deg']
+                )
+                
+                if gaia_info:
+                    # Populate GAIA magnitude fields
+                    if gaia_info['magnitudes']['B'] is not None:
+                        self.target_gaia_mag_b.set(f"{gaia_info['magnitudes']['B']:.3f}")
+                    else:
+                        self.target_gaia_mag_b.set("")
+                    if gaia_info['magnitudes']['V'] is not None:
+                        self.target_gaia_mag_v.set(f"{gaia_info['magnitudes']['V']:.3f}")
+                    else:
+                        self.target_gaia_mag_v.set("")
+                    if gaia_info['magnitudes']['R'] is not None:
+                        self.target_gaia_mag_r.set(f"{gaia_info['magnitudes']['R']:.3f}")
+                    else:
+                        self.target_gaia_mag_r.set("")
+                    if gaia_info['magnitudes']['I'] is not None:
+                        self.target_gaia_mag_i.set(f"{gaia_info['magnitudes']['I']:.3f}")
+                    else:
+                        self.target_gaia_mag_i.set("")
+                    
+                    # Set GAIA source ID
+                    self.target_gaia_source_id.set(str(gaia_info['source_id']))
+                else:
+                    # Clear GAIA fields if no GAIA source found
+                    self.target_gaia_mag_b.set("")
+                    self.target_gaia_mag_v.set("")
+                    self.target_gaia_mag_r.set("")
+                    self.target_gaia_mag_i.set("")
+                    self.target_gaia_source_id.set("")
+                    print("Warning: No GAIA source found for target")
                 
                 # Provide visual feedback for success
                 self.set_button_success(self.search_coord_btn)
@@ -340,7 +450,7 @@ class MainWindow:
             
             # Show progress
             self.root.config(cursor="wait")
-            self.root.update()
+            self.set_button_progress(self.search_hex_btn, "Simbad...")
             
             # Lookup target by converted coordinates
             target_info = catalog_query.lookup_target_by_coordinates(ra_deg, dec_deg)
@@ -375,6 +485,41 @@ class MainWindow:
                 else:
                     self.target_mag_i.set("")
                 
+                # Now lookup GAIA information for the target
+                gaia_info = catalog_query.find_gaia_source_for_target(
+                    target_info['ra_deg'], target_info['dec_deg']
+                )
+                
+                if gaia_info:
+                    # Populate GAIA magnitude fields
+                    if gaia_info['magnitudes']['B'] is not None:
+                        self.target_gaia_mag_b.set(f"{gaia_info['magnitudes']['B']:.3f}")
+                    else:
+                        self.target_gaia_mag_b.set("")
+                    if gaia_info['magnitudes']['V'] is not None:
+                        self.target_gaia_mag_v.set(f"{gaia_info['magnitudes']['V']:.3f}")
+                    else:
+                        self.target_gaia_mag_v.set("")
+                    if gaia_info['magnitudes']['R'] is not None:
+                        self.target_gaia_mag_r.set(f"{gaia_info['magnitudes']['R']:.3f}")
+                    else:
+                        self.target_gaia_mag_r.set("")
+                    if gaia_info['magnitudes']['I'] is not None:
+                        self.target_gaia_mag_i.set(f"{gaia_info['magnitudes']['I']:.3f}")
+                    else:
+                        self.target_gaia_mag_i.set("")
+                    
+                    # Set GAIA source ID
+                    self.target_gaia_source_id.set(str(gaia_info['source_id']))
+                else:
+                    # Clear GAIA fields if no GAIA source found
+                    self.target_gaia_mag_b.set("")
+                    self.target_gaia_mag_v.set("")
+                    self.target_gaia_mag_r.set("")
+                    self.target_gaia_mag_i.set("")
+                    self.target_gaia_source_id.set("")
+                    print("Warning: No GAIA source found for target")
+                
                 # Provide visual feedback for success
                 self.set_button_success(self.search_hex_btn)
             else:
@@ -387,12 +532,29 @@ class MainWindow:
             # Reset cursor
             self.root.config(cursor="")
     
+    def set_button_progress(self, button, phase_text):
+        """Set button to show progress phase."""
+        button.configure(text=phase_text, fg="blue", font=("Arial", 9, "bold"),
+                        relief="solid", borderwidth=2)
+        self.root.update()
+    
     def set_button_success(self, button):
         """Set button to green for success feedback."""
-        # Store original text
-        original_text = button.cget('text')
         # Change to success appearance with checkmark
         button.configure(text="✓ Success", fg="green", font=("Arial", 9, "bold"),
+                        relief="solid", borderwidth=2)
+        # Ensure cursor is normal and force update immediately
+        self.root.config(cursor="")
+        self.root.update()
+        # Schedule reset after 3 seconds - always reset to "Search"
+        self.root.after(3000, lambda: self.reset_button_color(button, "Search"))
+    
+    def set_button_failure(self, button, error_text):
+        """Set button to show temporary failure state."""
+        # Store original text
+        original_text = button.cget('text')
+        # Change to failure appearance
+        button.configure(text=f"✗ {error_text}", fg="red", font=("Arial", 9, "bold"),
                         relief="solid", borderwidth=2)
         # Force update immediately
         self.root.update()
@@ -754,6 +916,20 @@ class MainWindow:
             self.target_mag_v.set(f"{v_val:.3f}" if v_val is not None and v_val != 0.0 else "")
             self.target_mag_r.set(f"{r_val:.3f}" if r_val is not None and r_val != 0.0 else "")
             self.target_mag_i.set(f"{i_val:.3f}" if i_val is not None and i_val != 0.0 else "")
+            
+            # Load GAIA data if available
+            gaia_data = target_config.get("gaia_data", {})
+            gaia_mags = gaia_data.get("magnitudes", {})
+            gaia_b_val = gaia_mags.get("B", None)
+            gaia_v_val = gaia_mags.get("V", None)
+            gaia_r_val = gaia_mags.get("R", None)
+            gaia_i_val = gaia_mags.get("I", None)
+            self.target_gaia_mag_b.set(f"{gaia_b_val:.3f}" if gaia_b_val is not None and gaia_b_val != 0.0 else "")
+            self.target_gaia_mag_v.set(f"{gaia_v_val:.3f}" if gaia_v_val is not None and gaia_v_val != 0.0 else "")
+            self.target_gaia_mag_r.set(f"{gaia_r_val:.3f}" if gaia_r_val is not None and gaia_r_val != 0.0 else "")
+            self.target_gaia_mag_i.set(f"{gaia_i_val:.3f}" if gaia_i_val is not None and gaia_i_val != 0.0 else "")
+            self.target_gaia_source_id.set(gaia_data.get("source_id", ""))
+            
             self.target_notes.delete(1.0, tk.END)
             self.target_notes.insert(1.0, target_config.get("notes", ""))
             
@@ -830,6 +1006,24 @@ class MainWindow:
         except ValueError:
             messagebox.showerror("Error", "Invalid numeric values in coordinate or magnitude fields!")
             return
+        
+        # Handle GAIA magnitude strings - convert to float if not empty, otherwise None
+        try:
+            gaia_b_str = self.target_gaia_mag_b.get().strip()
+            gaia_v_str = self.target_gaia_mag_v.get().strip()
+            gaia_r_str = self.target_gaia_mag_r.get().strip()
+            gaia_i_str = self.target_gaia_mag_i.get().strip()
+            
+            gaia_b_val = float(gaia_b_str) if gaia_b_str else None
+            gaia_v_val = float(gaia_v_str) if gaia_v_str else None
+            gaia_r_val = float(gaia_r_str) if gaia_r_str else None
+            gaia_i_val = float(gaia_i_str) if gaia_i_str else None
+            
+            gaia_source_id = self.target_gaia_source_id.get().strip()
+            gaia_source_id_val = gaia_source_id if gaia_source_id else None
+        except ValueError:
+            messagebox.showerror("Error", "Invalid numeric values in GAIA magnitude fields!")
+            return
             
         config = {
             "target_name": self.target_name.get(),
@@ -844,6 +1038,15 @@ class MainWindow:
                 "V": v_val,
                 "R": r_val,
                 "I": i_val
+            },
+            "gaia_data": {
+                "source_id": gaia_source_id_val,
+                "magnitudes": {
+                    "B": gaia_b_val,
+                    "V": gaia_v_val,
+                    "R": gaia_r_val,
+                    "I": gaia_i_val
+                }
             },
             "notes": self.target_notes.get(1.0, tk.END).strip()
         }

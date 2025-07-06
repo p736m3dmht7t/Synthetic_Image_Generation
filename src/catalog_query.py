@@ -663,3 +663,105 @@ class CatalogQuery:
         except Exception as e:
             print(f"Error looking up coordinates RA={ra_deg:.6f}°, Dec={dec_deg:.6f}°: {str(e)}")
             return None
+
+    def find_gaia_source_for_target(self, ra_deg, dec_deg, search_radius_arcsec=10.0):
+        """
+        Find GAIA source_id and DR3 magnitudes for a target at given coordinates.
+        
+        Args:
+            ra_deg (float): Right ascension in degrees
+            dec_deg (float): Declination in degrees  
+            search_radius_arcsec (float): Search radius in arcseconds (default 10.0)
+            
+        Returns:
+            dict or None: GAIA source information with source_id and DR3 magnitudes
+        """
+        try:
+            # Create coordinate object
+            coord = SkyCoord(ra=ra_deg*u.degree, dec=dec_deg*u.degree, frame='icrs')
+            
+            # Convert radius to degrees
+            radius_deg = search_radius_arcsec / 3600.0
+            
+            # Build GAIA query for nearby sources
+            query = f"""
+            SELECT TOP 5
+                source_id,
+                ra, dec,
+                phot_g_mean_mag,
+                phot_bp_mean_mag,
+                phot_rp_mean_mag,
+                bp_rp,
+                g_rp
+            FROM gaiadr3.gaia_source
+            WHERE 
+                CONTAINS(
+                    POINT('ICRS', ra, dec),
+                    CIRCLE('ICRS', {ra_deg}, {dec_deg}, {radius_deg})
+                ) = 1
+                AND phot_g_mean_mag IS NOT NULL
+                AND phot_bp_mean_mag IS NOT NULL
+                AND phot_rp_mean_mag IS NOT NULL
+            ORDER BY phot_g_mean_mag ASC
+            """
+            
+            print(f"Searching for GAIA source near RA={ra_deg:.6f}°, Dec={dec_deg:.6f}°")
+            print(f"Search radius: {search_radius_arcsec:.1f} arcsec")
+            
+            # Execute query
+            job = Gaia.launch_job(query)
+            results = job.get_results()
+            
+            if len(results) == 0:
+                print("No GAIA sources found within search radius")
+                return None
+            
+            # Find closest source
+            best_source = None
+            best_separation = float('inf')
+            
+            for source in results:
+                source_coord = SkyCoord(ra=source['ra']*u.degree, dec=source['dec']*u.degree, frame='icrs')
+                separation = coord.separation(source_coord).arcsecond
+                
+                if separation < best_separation:
+                    best_separation = separation
+                    best_source = source
+            
+            if best_source is None:
+                print("No suitable GAIA source found")
+                return None
+                
+            # Get GAIA DR3 magnitudes using spectroscopic method
+            source_id = int(best_source['source_id'])
+            magnitudes, errors = self.gaia_photometry.process_source_list([source_id])
+            
+            if magnitudes is None or len(magnitudes) == 0:
+                print(f"Failed to get GAIA DR3 magnitudes for source_id {source_id}")
+                return None
+                
+            mag_data = magnitudes[source_id]
+            
+            gaia_info = {
+                'source_id': source_id,
+                'ra_deg': float(best_source['ra']),
+                'dec_deg': float(best_source['dec']),
+                'separation_arcsec': best_separation,
+                'magnitudes': {
+                    'B': round(mag_data['B'], 3) if mag_data['B'] is not None else None,
+                    'V': round(mag_data['V'], 3) if mag_data['V'] is not None else None,
+                    'R': round(mag_data['R'], 3) if mag_data['R'] is not None else None,
+                    'I': round(mag_data['I'], 3) if mag_data['I'] is not None else None
+                }
+            }
+            
+            print(f"Found GAIA source_id: {source_id}")
+            print(f"GAIA position: RA={gaia_info['ra_deg']:.6f}°, Dec={gaia_info['dec_deg']:.6f}°")
+            print(f"Separation from target: {best_separation:.2f} arcsec")
+            print(f"GAIA DR3 magnitudes: B={gaia_info['magnitudes']['B']}, V={gaia_info['magnitudes']['V']}, R={gaia_info['magnitudes']['R']}, I={gaia_info['magnitudes']['I']}")
+            
+            return gaia_info
+            
+        except Exception as e:
+            print(f"Error finding GAIA source for target: {str(e)}")
+            return None
