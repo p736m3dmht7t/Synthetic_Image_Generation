@@ -732,15 +732,22 @@ class CatalogQuery:
                 print("No suitable GAIA source found")
                 return None
                 
-            # Get GAIA DR3 magnitudes using spectroscopic method
+            # Get GAIA DR3 magnitudes using spectroscopic method with polynomial fallback
             source_id = int(best_source['source_id'])
             magnitudes, errors = self.gaia_photometry.process_source_list([source_id])
             
+            # Track which method was used for marking with asterisk
+            used_polynomial = False
+            
             if magnitudes is None or len(magnitudes) == 0:
-                print(f"Failed to get GAIA DR3 magnitudes for source_id {source_id}")
-                return None
-                
-            mag_data = magnitudes[source_id]
+                print(f"Spectroscopic photometry failed for source_id {source_id}, falling back to polynomial method")
+                # Fallback to polynomial method
+                mag_data, used_polynomial = self._get_polynomial_magnitudes_for_source(best_source)
+                if mag_data is None:
+                    print(f"Failed to get GAIA DR3 magnitudes for source_id {source_id}")
+                    return None
+            else:
+                mag_data = magnitudes[source_id]
             
             gaia_info = {
                 'source_id': source_id,
@@ -752,7 +759,8 @@ class CatalogQuery:
                     'V': round(mag_data['V'], 3) if mag_data['V'] is not None else None,
                     'R': round(mag_data['R'], 3) if mag_data['R'] is not None else None,
                     'I': round(mag_data['I'], 3) if mag_data['I'] is not None else None
-                }
+                },
+                'used_polynomial': used_polynomial
             }
             
             print(f"Found GAIA source_id: {source_id}")
@@ -765,3 +773,50 @@ class CatalogQuery:
         except Exception as e:
             print(f"Error finding GAIA source for target: {str(e)}")
             return None
+    
+    def _get_polynomial_magnitudes_for_source(self, source):
+        """
+        Calculate polynomial-based magnitudes for a single GAIA source.
+        
+        Args:
+            source: GAIA source record with photometry
+            
+        Returns:
+            tuple: (magnitude_dict, used_polynomial_flag) or (None, False) if failed
+        """
+        try:
+            # Extract GAIA photometry
+            g_mag = float(source['phot_g_mean_mag'])
+            bp_mag = float(source['phot_bp_mean_mag']) if source['phot_bp_mean_mag'] is not None else None
+            rp_mag = float(source['phot_rp_mean_mag']) if source['phot_rp_mean_mag'] is not None else None
+            
+            # Calculate BP-RP color
+            if bp_mag is not None and rp_mag is not None:
+                bp_rp = bp_mag - rp_mag
+            else:
+                print("Missing BP or RP photometry for polynomial conversion")
+                return None, False
+            
+            # Check for valid color range (typical range is -0.5 to 4.0)
+            if not (-1.0 <= bp_rp <= 5.0):
+                print(f"BP-RP color {bp_rp:.3f} outside valid range for polynomial conversion")
+                return None, False
+            
+            # Polynomial transformation equations (same as in convert_gaia_to_johnson_cousins_polynomial)
+            V = g_mag - 0.01760 - 0.006860 * bp_rp - 0.1732 * bp_rp**2
+            B = g_mag + 0.3130 + 0.2271 * bp_rp + 0.01397 * bp_rp**2
+            R = g_mag - 0.4980 - 0.0916 * bp_rp - 0.0594 * bp_rp**2
+            I = g_mag - 0.7597 - 0.1311 * bp_rp - 0.0753 * bp_rp**2
+            
+            print(f"Polynomial conversion: V={V:.3f}, B={B:.3f}, R={R:.3f}, I={I:.3f}")
+            
+            return {
+                'B': B if np.isfinite(B) else None,
+                'V': V if np.isfinite(V) else None,
+                'R': R if np.isfinite(R) else None,
+                'I': I if np.isfinite(I) else None
+            }, True
+            
+        except Exception as e:
+            print(f"Error in polynomial magnitude calculation: {str(e)}")
+            return None, False

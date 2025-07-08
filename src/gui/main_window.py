@@ -246,21 +246,24 @@ class MainWindow:
                 )
                 
                 if gaia_info:
-                    # Populate GAIA magnitude fields
+                    # Check if polynomial method was used
+                    asterisk = "*" if gaia_info.get('used_polynomial', False) else ""
+                    
+                    # Populate GAIA magnitude fields with asterisk marking if polynomial
                     if gaia_info['magnitudes']['B'] is not None:
-                        self.target_gaia_mag_b.set(f"{gaia_info['magnitudes']['B']:.3f}")
+                        self.target_gaia_mag_b.set(f"{gaia_info['magnitudes']['B']:.3f}{asterisk}")
                     else:
                         self.target_gaia_mag_b.set("")
                     if gaia_info['magnitudes']['V'] is not None:
-                        self.target_gaia_mag_v.set(f"{gaia_info['magnitudes']['V']:.3f}")
+                        self.target_gaia_mag_v.set(f"{gaia_info['magnitudes']['V']:.3f}{asterisk}")
                     else:
                         self.target_gaia_mag_v.set("")
                     if gaia_info['magnitudes']['R'] is not None:
-                        self.target_gaia_mag_r.set(f"{gaia_info['magnitudes']['R']:.3f}")
+                        self.target_gaia_mag_r.set(f"{gaia_info['magnitudes']['R']:.3f}{asterisk}")
                     else:
                         self.target_gaia_mag_r.set("")
                     if gaia_info['magnitudes']['I'] is not None:
-                        self.target_gaia_mag_i.set(f"{gaia_info['magnitudes']['I']:.3f}")
+                        self.target_gaia_mag_i.set(f"{gaia_info['magnitudes']['I']:.3f}{asterisk}")
                     else:
                         self.target_gaia_mag_i.set("")
                     
@@ -278,9 +281,9 @@ class MainWindow:
                     self.target_gaia_mag_i.set("")
                     self.target_gaia_source_id.set("")
                     print("Warning: No GAIA source found for target")
-                    # Show partial success (Simbad worked, GAIA failed)
-                    self.set_button_failure(self.search_target_btn, "Failed: GAIA")
-                    success = False
+                    # Still show success since Simbad lookup succeeded
+                    self.set_button_success(self.search_target_btn)
+                    success = True
                 
             else:
                 self.set_button_failure(self.search_target_btn, "Failed: Simbad")
@@ -371,32 +374,41 @@ class MainWindow:
                 else:
                     self.target_mag_i.set("")
                 
+                # Show GAIA progress phase
+                self.set_button_progress(self.search_coord_btn, "GAIA DR3...")
+                
                 # Now lookup GAIA information for the target
                 gaia_info = catalog_query.find_gaia_source_for_target(
                     target_info['ra_deg'], target_info['dec_deg']
                 )
                 
                 if gaia_info:
-                    # Populate GAIA magnitude fields
+                    # Check if polynomial method was used
+                    asterisk = "*" if gaia_info.get('used_polynomial', False) else ""
+                    
+                    # Populate GAIA magnitude fields with asterisk marking if polynomial
                     if gaia_info['magnitudes']['B'] is not None:
-                        self.target_gaia_mag_b.set(f"{gaia_info['magnitudes']['B']:.3f}")
+                        self.target_gaia_mag_b.set(f"{gaia_info['magnitudes']['B']:.3f}{asterisk}")
                     else:
                         self.target_gaia_mag_b.set("")
                     if gaia_info['magnitudes']['V'] is not None:
-                        self.target_gaia_mag_v.set(f"{gaia_info['magnitudes']['V']:.3f}")
+                        self.target_gaia_mag_v.set(f"{gaia_info['magnitudes']['V']:.3f}{asterisk}")
                     else:
                         self.target_gaia_mag_v.set("")
                     if gaia_info['magnitudes']['R'] is not None:
-                        self.target_gaia_mag_r.set(f"{gaia_info['magnitudes']['R']:.3f}")
+                        self.target_gaia_mag_r.set(f"{gaia_info['magnitudes']['R']:.3f}{asterisk}")
                     else:
                         self.target_gaia_mag_r.set("")
                     if gaia_info['magnitudes']['I'] is not None:
-                        self.target_gaia_mag_i.set(f"{gaia_info['magnitudes']['I']:.3f}")
+                        self.target_gaia_mag_i.set(f"{gaia_info['magnitudes']['I']:.3f}{asterisk}")
                     else:
                         self.target_gaia_mag_i.set("")
                     
                     # Set GAIA source ID
                     self.target_gaia_source_id.set(str(gaia_info['source_id']))
+                    
+                    # Show success immediately
+                    self.set_button_success(self.search_coord_btn)
                 else:
                     # Clear GAIA fields if no GAIA source found
                     self.target_gaia_mag_b.set("")
@@ -405,15 +417,17 @@ class MainWindow:
                     self.target_gaia_mag_i.set("")
                     self.target_gaia_source_id.set("")
                     print("Warning: No GAIA source found for target")
-                
-                # Provide visual feedback for success
-                self.set_button_success(self.search_coord_btn)
+                    # Still show success since Simbad lookup succeeded
+                    self.set_button_success(self.search_coord_btn)
             else:
+                self.set_button_failure(self.search_coord_btn, "Failed: Simbad")
                 messagebox.showinfo("No Results", f"No objects found at coordinates:\nRA: {ra_val:.6f}°\nDec: {dec_val:+.6f}°")
             
         except ValueError:
+            self.set_button_failure(self.search_coord_btn, "Failed")
             messagebox.showerror("Error", "Invalid coordinate format. Please enter numeric values.")
         except Exception as e:
+            self.set_button_failure(self.search_coord_btn, "Failed")
             messagebox.showerror("Error", f"Error searching coordinates: {str(e)}")
         
         finally:
@@ -485,32 +499,41 @@ class MainWindow:
                 else:
                     self.target_mag_i.set("")
                 
+                # Show GAIA progress phase
+                self.set_button_progress(self.search_hex_btn, "GAIA DR3...")
+                
                 # Now lookup GAIA information for the target
                 gaia_info = catalog_query.find_gaia_source_for_target(
                     target_info['ra_deg'], target_info['dec_deg']
                 )
                 
                 if gaia_info:
-                    # Populate GAIA magnitude fields
+                    # Check if polynomial method was used
+                    asterisk = "*" if gaia_info.get('used_polynomial', False) else ""
+                    
+                    # Populate GAIA magnitude fields with asterisk marking if polynomial
                     if gaia_info['magnitudes']['B'] is not None:
-                        self.target_gaia_mag_b.set(f"{gaia_info['magnitudes']['B']:.3f}")
+                        self.target_gaia_mag_b.set(f"{gaia_info['magnitudes']['B']:.3f}{asterisk}")
                     else:
                         self.target_gaia_mag_b.set("")
                     if gaia_info['magnitudes']['V'] is not None:
-                        self.target_gaia_mag_v.set(f"{gaia_info['magnitudes']['V']:.3f}")
+                        self.target_gaia_mag_v.set(f"{gaia_info['magnitudes']['V']:.3f}{asterisk}")
                     else:
                         self.target_gaia_mag_v.set("")
                     if gaia_info['magnitudes']['R'] is not None:
-                        self.target_gaia_mag_r.set(f"{gaia_info['magnitudes']['R']:.3f}")
+                        self.target_gaia_mag_r.set(f"{gaia_info['magnitudes']['R']:.3f}{asterisk}")
                     else:
                         self.target_gaia_mag_r.set("")
                     if gaia_info['magnitudes']['I'] is not None:
-                        self.target_gaia_mag_i.set(f"{gaia_info['magnitudes']['I']:.3f}")
+                        self.target_gaia_mag_i.set(f"{gaia_info['magnitudes']['I']:.3f}{asterisk}")
                     else:
                         self.target_gaia_mag_i.set("")
                     
                     # Set GAIA source ID
                     self.target_gaia_source_id.set(str(gaia_info['source_id']))
+                    
+                    # Show success immediately
+                    self.set_button_success(self.search_hex_btn)
                 else:
                     # Clear GAIA fields if no GAIA source found
                     self.target_gaia_mag_b.set("")
@@ -519,13 +542,14 @@ class MainWindow:
                     self.target_gaia_mag_i.set("")
                     self.target_gaia_source_id.set("")
                     print("Warning: No GAIA source found for target")
-                
-                # Provide visual feedback for success
-                self.set_button_success(self.search_hex_btn)
+                    # Still show success since Simbad lookup succeeded
+                    self.set_button_success(self.search_hex_btn)
             else:
+                self.set_button_failure(self.search_hex_btn, "Failed: Simbad")
                 messagebox.showinfo("No Results", f"No objects found at coordinates:\nRA: {ra_str}\nDec: {dec_str}")
             
         except Exception as e:
+            self.set_button_failure(self.search_hex_btn, "Failed")
             messagebox.showerror("Error", f"Error searching hexagesimal coordinates: {str(e)}")
         
         finally:
