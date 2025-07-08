@@ -421,7 +421,7 @@ class AstroImageJProcessor:
 def main():
     """Main function."""
     if len(sys.argv) != 2:
-        print("Usage: python astroimagej_aperture_file_generator.py input_file.radec")
+        print("Usage: python astroimagej_aperture_file_generator.py input_file")
         sys.exit(1)
     
     input_file = sys.argv[1]
